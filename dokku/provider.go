@@ -37,8 +37,9 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"dokku_app": resourceApp(),
-			// "dokku_config": resourceConfig(),
+			"dokku_app":              resourceApp(),
+			"dokku_postgres_service": resourcePostgresService(),
+			"dokku_redis_service":    resourceRedisService(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"dokku_apps": dataSourceApps(),

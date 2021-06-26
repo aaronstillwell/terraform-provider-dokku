@@ -1,0 +1,237 @@
+package dokku
+
+//
+// Reusable logic for different services (pg/redis etc)
+//
+
+import (
+	"fmt"
+	"log"
+	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/melbahja/goph"
+)
+
+type DokkuGenericServiceI interface {
+	setOnResourceData(d *schema.ResourceData)
+}
+
+type DokkuGenericService struct {
+	Id           string
+	Name         string
+	Image        string
+	ImageVersion string
+	// Password     string
+	// RootPassword string
+	// CustomEnv    string
+	Stopped bool
+
+	CmdName string
+}
+
+//
+func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
+	d.SetId(s.Id)
+	d.Set("name", s.Name)
+	d.Set("image", s.Image)
+	d.Set("image_version", s.ImageVersion)
+	// d.Set("password", s.Password)
+	// d.Set("root_password", s.RootPassword)
+	// d.Set("custom_env", s.CustomEnv)
+	d.Set("stopped", s.Stopped)
+}
+
+func (s *DokkuGenericService) Cmd(str ...string) string {
+	return fmt.Sprintf("%s:%s", s.CmdName, strings.Join(str, " "))
+}
+
+//
+func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...string) string {
+	addAllFlags := len(flagsToAddSlice) == 0
+	flagsToAdd := sliceToLookupMap(flagsToAddSlice)
+	flags := make([]string, 1)
+
+	if service.Image != "" {
+		if _, ok := flagsToAdd["image"]; ok || addAllFlags {
+			flags = append(flags, fmt.Sprintf("--image %s", service.Image))
+		}
+	}
+
+	if service.ImageVersion != "" {
+		if _, ok := flagsToAdd["image-version"]; ok || addAllFlags {
+			flags = append(flags, fmt.Sprintf("--image-version %s", service.ImageVersion))
+		}
+	}
+
+	// if service.Password != "" {
+	// 	if _, ok := flagsToAdd["password"]; ok || addAllFlags {
+	// 		flags = append(flags, fmt.Sprintf("--password %s", service.Password))
+	// 	}
+	// }
+
+	// if service.RootPassword != "" {
+	// 	if _, ok := flagsToAdd["root-password"]; ok || addAllFlags {
+	// 		flags = append(flags, fmt.Sprintf("--root-password %s", service.RootPassword))
+	// 	}
+	// }
+
+	// if service.CustomEnv != "" {
+	// 	if _, ok := flagsToAdd["custom-env"]; ok || addAllFlags {
+	// 		flags = append(flags, fmt.Sprintf("--custom-env %s", service.CustomEnv))
+	// 	}
+	// }
+
+	return strings.Join(flags, " ")
+}
+
+//
+func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
+	serviceInfo, err := client.Run(service.Cmd("info", service.Name))
+
+	if err != nil {
+		if err.Error() == "Process exited with status 20" {
+			// Service does not exist
+			service.Id = ""
+			log.Printf("[DEBUG] %s service %s does not exist\n", service.CmdName, service.Name)
+			// return nil, err
+			return nil
+		} else {
+			return err
+		}
+	}
+	service.Id = service.Name
+
+	infoLines := strings.Split(string(serviceInfo), "\n")[1:]
+
+	for _, ln := range infoLines {
+		lnPart := strings.Split(ln, ":")
+		valPart := strings.TrimSpace(strings.Join(lnPart[1:], ":"))
+		switch strings.TrimSpace(lnPart[0]) {
+		case "Status":
+			if valPart == "exited" {
+				service.Stopped = true
+			}
+		case "Version":
+			service.Image, service.ImageVersion = dockerImageAndVersion(valPart)
+		}
+	}
+
+	return nil
+}
+
+//
+func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error {
+	_, err := client.Run(fmt.Sprintf("%s:create %s %s", service.CmdName, service.Name, createServiceFlagStr(service)))
+
+	if err != nil {
+		return err
+	} else {
+		// Service was created, stop it if necessary
+		if service.Stopped {
+			var err error
+			_, err = client.Run(fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))
+
+			if err != nil {
+				return err
+			}
+		}
+
+		// Read the service to get info on image etc
+		return dokkuServiceRead(service, client)
+	}
+}
+
+//
+func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, client *goph.Client) error {
+	serviceName := d.Get("name").(string)
+	oldServiceName := d.Get("name").(string)
+
+	if d.HasChange("name") {
+		oldServiceNameI, _ := d.GetChange("name")
+		oldServiceName = oldServiceNameI.(string)
+	}
+
+	if d.HasChanges("name", "password", "root_password") {
+		// Service needs to be recreated from scratch. We do this via `dokku service:clone`
+
+		// If the name _wasn't_ changed, then we need to perform 2x clones, one
+		// to a temporary db, delete the original, then clone again back to the original name
+		var cloneServiceName string
+		if !d.HasChange("name") {
+			cloneServiceName = fmt.Sprintf("tf-tmp-%s-%s", serviceName, tmpResourceName(5))
+		} else {
+			cloneServiceName = serviceName
+		}
+
+		log.Printf("[DEBUG] running dokku %s:clone %s -> %s\n", service.CmdName, oldServiceName, cloneServiceName)
+		createFlags := createServiceFlagStr(service)
+		_, err := client.Run(fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, oldServiceName, cloneServiceName, createFlags))
+
+		if err != nil {
+			return err
+		}
+
+		err = dokkuServiceDestroy(service.CmdName, oldServiceName, client)
+		if err != nil {
+			return err
+		}
+
+		if !d.HasChange("name") {
+			// Clone again to the original name
+			log.Printf("[DEBUG] running dokku %s:clone %s -> %s\n", service.CmdName, cloneServiceName, d.Get("name"))
+			_, err = client.Run(fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, cloneServiceName, d.Get("name"), createFlags))
+
+			if err != nil {
+				return err
+			}
+
+			err = dokkuServiceDestroy(service.CmdName, cloneServiceName, client)
+
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	service.Id = serviceName
+
+	if d.HasChanges("image", "image_version", "custom_env") {
+		log.Printf("[DEBUG] running %s:upgrade\n", serviceName)
+		flags := createServiceFlagStr(service, "image", "image-version", "custom-env")
+		updateStr := fmt.Sprintf("%s:upgrade %s %s", service.CmdName, service.Name, flags)
+
+		log.Printf("[DEBUG] running `dokku %s`\n", updateStr)
+
+		_, err := client.Run(updateStr)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if d.HasChange("stopped") {
+		var err error
+		if d.Get("stopped").(bool) {
+			_, err = client.Run(fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))
+		} else {
+			_, err = client.Run(fmt.Sprintf("%s:start %s", service.CmdName, service.Name))
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return dokkuServiceRead(service, client)
+}
+
+//
+func dokkuServiceDestroy(cmd string, serviceName string, client *goph.Client) error {
+	log.Printf("[DEBUG] running %s:destroy on %s\n", cmd, serviceName)
+	_, err := client.Run(fmt.Sprintf("%s:destroy %s -f", cmd, serviceName))
+
+	return err
+}

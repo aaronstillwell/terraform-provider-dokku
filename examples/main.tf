@@ -17,8 +17,7 @@ provider "dokku" {
 # data "dokku_apps" "all" {}
 
 resource "dokku_app" "rails-app" {
-  # This is currently the only supported resource, and these are the
-  # only supported options.
+  # These are currently the only supported options for an app.
 
   name = "rails-app-old"
 
@@ -35,23 +34,26 @@ resource "dokku_app" "rails-app" {
   # TODO NGINX settings
 }
 
-# resource "dokku_postgres_service" "rails-postgres" {
-#   # TODO
-#   name          = "rails-postgres"
-#   image         = ""
-#   image_version = "12.0"
-#   password      = ""
-#   root_password = ""
-# }
+resource "dokku_postgres_service" "rails-postgres" {
+  name = "rails-postgres-11"
+  // The image/version must already exist on the host via `docker pull`
+  image = "postgres"
+  image_version = "11.12"
+  # Not yet supported:
+  # custom_env    = "FOO=BAR;FOO2=BAR2;"
+  # password      = "test123"
+  # root_password = "test123"
+}
 
-# resource "dokku_redis_service" "rails-redis" {
-#   # TODO
-#   name          = "rails-redis"
-#   image         = ""
-#   image_version = ""
-#   password      = ""
-#   root_password = ""
-# }
+resource "dokku_redis_service" "rails-redis" {
+  name = "rails-redis"
+  // The image/version must already exist on the host via `docker pull`
+  image         = "redis"
+  image_version = "6.2.4"
+  # Not yet supported
+  # password      = ""
+  # root_password = ""
+}
 
 # resource "dokku_postgres_service_link" "rails-postgres-link" {
 #   app     = dokku_app.rails-app.id

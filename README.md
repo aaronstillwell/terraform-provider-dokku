@@ -41,6 +41,8 @@ terraform init && terraform apply
 ```
 provider "dokku" {
   ssh_host = "dokku.me"
+  ssh_user = "dokku"
+  ssh_port = 8022
   ssh_cert = "~/.ssh/dokku-cert"
 }
 
@@ -56,5 +58,15 @@ resource "dokku_app" "rails-app" {
   domains = [
     "test-2.dokku.me"
   ]
+}
+
+resource "dokku_postgres_service" "rails-postgres" {
+  name          = "rails-postgres"
+  image_version = "11.12"
+}
+
+resource "dokku_redis_service" "rails-redis" {
+  name          = "rails-redis"
+  image_version = "6.2.4"
 }
 ```

@@ -1,5 +1,10 @@
 package dokku
 
+import (
+	"math/rand"
+	"strings"
+)
+
 //
 func interfaceSliceToStrSlice(list []interface{}) []string {
 	slice := make([]string, len(list))
@@ -50,4 +55,30 @@ func calculateMissingStrings(slice1 []string, slice2 []string) []string {
 	}
 
 	return missing
+}
+
+//
+func sliceToLookupMap(slice []string) map[string]struct{} {
+	m := make(map[string]struct{})
+	for _, str := range slice {
+		m[str] = struct{}{}
+	}
+	return m
+}
+
+//
+func dockerImageAndVersion(str string) (string, string) {
+	parts := strings.Split(str, ":")
+	return parts[0], parts[1]
+}
+
+//
+func tmpResourceName(length int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	s := make([]rune, length)
+	for i := range s {
+		s[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(s)
 }
