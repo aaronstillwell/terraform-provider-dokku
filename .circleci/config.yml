@@ -1,0 +1,16 @@
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.16
+    steps:
+      - checkout
+      - run:
+          name: Build provider
+          command: make install
+
+workflows:
+  build:
+    jobs:
+      - build
