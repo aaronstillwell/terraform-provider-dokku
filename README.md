@@ -46,6 +46,7 @@ provider "dokku" {
   ssh_cert = "~/.ssh/dokku-cert"
 }
 
+# Create an app...
 resource "dokku_app" "rails-app" {
   name = "rails-app"
 
@@ -60,6 +61,7 @@ resource "dokku_app" "rails-app" {
   ]
 }
 
+# Create accompanying services...
 resource "dokku_postgres_service" "rails-postgres" {
   name          = "rails-postgres"
   image_version = "11.12"
@@ -68,5 +70,22 @@ resource "dokku_postgres_service" "rails-postgres" {
 resource "dokku_redis_service" "rails-redis" {
   name          = "rails-redis"
   image_version = "6.2.4"
+}
+
+# Link the services to the app...
+resource "dokku_postgres_service_link" "rails-postgres-link" {
+  app     = dokku_app.rails-app.name
+  service = dokku_postgres_service.rails-postgres.name
+
+  alias = "TEST_DB_URL"
+  # query_string = ""
+}
+
+resource "dokku_redis_service_link" "rails-redis-link" {
+  app     = dokku_app.rails-app.name
+  service = dokku_redis_service.rails-redis.name
+
+  alias = "TEST_REDIS_URL"
+  # query_string = ""
 }
 ```

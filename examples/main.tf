@@ -19,7 +19,7 @@ provider "dokku" {
 resource "dokku_app" "rails-app" {
   # These are currently the only supported options for an app.
 
-  name = "rails-app-old"
+  name = "rails-app"
 
   config_vars = {
     AWS_REGION                 = "eu-west-2"
@@ -35,9 +35,9 @@ resource "dokku_app" "rails-app" {
 }
 
 resource "dokku_postgres_service" "rails-postgres" {
-  name = "rails-postgres-11"
+  name = "rails-postgres-11-test"
   // The image/version must already exist on the host via `docker pull`
-  image = "postgres"
+  image         = "postgres"
   image_version = "11.12"
   # Not yet supported:
   # custom_env    = "FOO=BAR;FOO2=BAR2;"
@@ -55,18 +55,18 @@ resource "dokku_redis_service" "rails-redis" {
   # root_password = ""
 }
 
-# resource "dokku_postgres_service_link" "rails-postgres-link" {
-#   app     = dokku_app.rails-app.id
-#   service = dokku_postgres_service.rails-postgres.id
+resource "dokku_postgres_service_link" "rails-postgres-link" {
+  app     = dokku_app.rails-app.name
+  service = dokku_postgres_service.rails-postgres.name
 
-#   alias        = ""
-#   query_string = ""
-# }
+  #alias = "TEST_DB_URL"
+  # query_string = ""
+}
 
-# resource "dokku_service_link" "rails-redis-link" {
-#   app     = dokku_app.rails-app.id
-#   service = dokku_predis_link.rails-redis.id
+resource "dokku_redis_service_link" "rails-redis-link" {
+  app     = dokku_app.rails-app.name
+  service = dokku_redis_service.rails-redis.name
 
-#   alias        = ""
-#   query_string = ""
-# }
+  # alias = "TEST_REDIS_URL"
+  # query_string = ""
+}
