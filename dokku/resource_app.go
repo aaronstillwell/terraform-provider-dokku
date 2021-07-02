@@ -42,6 +42,9 @@ func resourceApp() *schema.Resource {
 				Optional: true,
 			},
 		},
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 	}
 }
 
@@ -65,7 +68,12 @@ func appRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Di
 
 	var diags diag.Diagnostics
 
-	appName := d.Get("name").(string)
+	var appName string
+	if d.Id() != "" {
+		appName = d.Id()
+	} else {
+		appName = d.Get("name").(string)
+	}
 
 	app, err := dokkuAppRetrieve(appName, sshClient)
 	if err != nil {

@@ -35,6 +35,9 @@ func resourceRedisService() *schema.Resource {
 				Computed: true,
 			},
 		},
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 	}
 }
 
@@ -62,7 +65,14 @@ func resourceRedisRead(ctx context.Context, d *schema.ResourceData, m interface{
 
 	var diags diag.Diagnostics
 
-	redis := NewDokkuRedisService(d.Get("name").(string))
+	var serviceName string
+	if d.Id() == "" {
+		serviceName = d.Get("name").(string)
+	} else {
+		serviceName = d.Id()
+	}
+
+	redis := NewDokkuRedisService(serviceName)
 	err := dokkuRedisRead(redis, sshClient)
 
 	if err != nil {

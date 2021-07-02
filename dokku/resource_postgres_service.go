@@ -55,6 +55,9 @@ func resourcePostgresService() *schema.Resource {
 			// 	Optional: true,
 			// },
 		},
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 	}
 }
 
@@ -83,7 +86,14 @@ func resourcePgRead(ctx context.Context, d *schema.ResourceData, m interface{}) 
 
 	var diags diag.Diagnostics
 
-	pg := NewDokkuPostgresService(d.Get("name").(string))
+	var serviceName string
+	if d.Id() == "" {
+		serviceName = d.Get("name").(string)
+	} else {
+		serviceName = d.Id()
+	}
+
+	pg := NewDokkuPostgresService(serviceName)
 	err := dokkuPgRead(pg, sshClient)
 
 	if err != nil {
