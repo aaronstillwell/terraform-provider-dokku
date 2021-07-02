@@ -163,8 +163,11 @@ func readAppDomains(appName string, client *goph.Client) ([]string, error) {
 
 		if key == "Domains app vhosts" {
 			domainList := strings.TrimSpace(parts[1])
-			domains := strings.Split(domainList, " ")
-			return domains, nil
+			if domainList == "" {
+				return []string{}, nil
+			} else {
+				return strings.Split(domainList, " "), nil
+			}
 		}
 	}
 
