@@ -4,6 +4,49 @@ This is an experimental terraform provider for provisioning apps on [Dokku](http
 
 This provider is not yet published, but the intent is to do so once a wider subset of configuration options are provided.
 
+## Getting started
+
+1. Add the provider to your terraform block
+
+```
+terraform {
+  required_providers {
+    dokku = {
+      version = "0.1"
+      source  = "hashicorp.com/aaronstillwell/dokku"
+    }
+  }
+}
+```
+
+2. Initialise the provider with your host settings. 
+```
+provider "dokku" {
+  ssh_host = "dokku.me"
+  ssh_user = "dokku"
+  ssh_port = 8022
+  ssh_cert = "~/.ssh/dokku-cert"
+}
+```
+
+3. Declare resources. See examples for more info.
+
+```
+resource "dokku_app" "rails-app" {
+  name = "rails-app"
+
+  config_vars = {
+    AWS_REGION                 = "eu-west-2"
+    S3_DATA_BUCKET             = "app-data-source"
+    ACTIVE_STORAGE_BUCKET_NAME = "active-storage"
+  }
+
+  domains = [
+    "test-2.dokku.me"
+  ]
+}
+```
+
 ## Developing
 
 The easiest way to develop this provider further is to set up a [vagrant](https://www.vagrantup.com/) box locally with Dokku installed. 
@@ -39,6 +82,15 @@ terraform init && terraform apply
 ## Examples
 
 ```
+terraform {
+  required_providers {
+    dokku = {
+      version = "0.1"
+      source  = "hashicorp.com/aaronstillwell/dokku"
+    }
+  }
+}
+
 provider "dokku" {
   ssh_host = "dokku.me"
   ssh_user = "dokku"
