@@ -50,6 +50,7 @@ workflows:
 
       - release:
           name: release-dry-run
+          dry-run: true
           context:
             - github-release
           requires:
