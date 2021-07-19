@@ -202,12 +202,21 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 
 //
 func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
-	_, err := client.Run(fmt.Sprintf("config:set %s %s", app.Name, app.configVarsStr()))
+	configVarStr := app.configVarsStr()
+	if len(configVarStr) == 0 {
+		return nil
+	}
+
+	_, err := client.Run(fmt.Sprintf("config:set %s %s", app.Name, configVarStr))
 	return err
 }
 
 //
 func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.Client) error {
+	if len(varsToUnset) == 0 {
+		return nil
+	}
+	log.Printf("[DEBUG] Unsetting keys %v\n", varsToUnset)
 	_, err := client.Run(fmt.Sprintf("config:unset %s", strings.Join(varsToUnset, " ")))
 	return err
 }
@@ -241,11 +250,7 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 
 		keysToDelete := calculateMissingKeys(newConfigVar, oldConfigVars)
 
-		log.Printf("[DEBUG] Unsetting keys %v\n", keysToDelete)
-		_, err := client.Run(fmt.Sprintf("config:unset %s %s", appName, strings.Join(keysToDelete, " ")))
-		if err != nil {
-			return err
-		}
+		dokkuAppConfigVarsUnset(app, keysToDelete, client)
 
 		// TODO shouldn't need to duplicate below we already have config set function
 		// This is basically an upsert, and will update values even if they haven't changed
@@ -257,7 +262,7 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		}
 
 		log.Printf("[DEBUG] Setting keys %v\n", keysToUpsert)
-		_, err = client.Run(fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")))
+		_, err := client.Run(fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")))
 
 		if err != nil {
 			return err
