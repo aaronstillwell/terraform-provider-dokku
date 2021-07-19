@@ -41,7 +41,10 @@ workflows:
           filters:
             tags:
               only:
-                - v*
+                - /v*/
+            branches:
+              ignore:
+                - /.*/
           requires:
             - build
 
