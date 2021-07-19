@@ -261,11 +261,13 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 			upsertParts = append(upsertParts, fmt.Sprintf("%s=%s", newK, newV))
 		}
 
-		log.Printf("[DEBUG] Setting keys %v\n", keysToUpsert)
-		_, err := client.Run(fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")))
+		if len(upsertParts) > 0 {
+			log.Printf("[DEBUG] Setting keys %v\n", keysToUpsert)
+			_, err := client.Run(fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")))
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
 		}
 	}
 
