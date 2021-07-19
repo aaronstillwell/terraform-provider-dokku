@@ -1,16 +1,53 @@
 version: 2.1
 
+orbs:
+  goreleaser: hubci/goreleaser@1.0.0
+
+executors:
+  default:
+    docker:
+      - image: cimg/go:1.16
+
 jobs:
   build:
-    docker:
-      - image: circleci/golang:1.16
+    executor: default
     steps:
       - checkout
       - run:
           name: Build provider
           command: make install
 
+  release:
+    parameters:
+      dry-run:
+        type: boolean
+        default: false
+    executor: default
+    steps:
+      - checkout
+      - goreleaser/install:
+          version: "0.173.2"
+      - goreleaser/release:
+          dry-run: << parameters.dry-run >>
+
 workflows:
   build:
     jobs:
       - build
+
+      - release:
+          context:
+            - github-release
+          filters:
+            tags:
+              only:
+                - v*
+          requires:
+            - build
+
+      - release:
+          name: release-dry-run
+          context:
+            - github-release
+          requires:
+            - build
