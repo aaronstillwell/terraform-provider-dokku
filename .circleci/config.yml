@@ -29,6 +29,8 @@ jobs:
           name: Import signing key
           command: |
             echo $OSS_SIGNING_KEY | base64 --decode | gpg --batch --no-tty --import --yes
+            touch /tmp/.circleci-gpg-setup
+            echo $OSS_SIGNING_PASS | gpg -a --detach-sign --passphrase-fd 0 --pinentry-mode loopback /tmp/.circleci-gpg-setup
       - goreleaser/install:
           version: "0.173.2"
       - goreleaser/release:
