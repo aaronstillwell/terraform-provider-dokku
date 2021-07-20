@@ -52,8 +52,6 @@ workflows:
             branches:
               ignore:
                 - /.*/
-          requires:
-            - build
 
       - release:
           name: release-dry-run
