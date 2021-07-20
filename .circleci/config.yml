@@ -25,6 +25,10 @@ jobs:
     executor: default
     steps:
       - checkout
+      - run:
+          name: Import signing key
+          command: |
+            echo $OSS_SIGNING_KEY | base64 --decode | gpg --batch --no-tty --import --yes
       - goreleaser/install:
           version: "0.173.2"
       - goreleaser/release:
@@ -38,6 +42,7 @@ workflows:
       - release:
           context:
             - github-release
+            - oss-signing-key
           filters:
             tags:
               only:
