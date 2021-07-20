@@ -58,5 +58,10 @@ workflows:
           dry-run: true
           context:
             - github-release
+            - oss-signing-key
+          filters:
+            branches:
+              only:
+                - master
           requires:
             - build
