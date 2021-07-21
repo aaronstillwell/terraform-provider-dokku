@@ -1,8 +1,6 @@
 # Terraform Provider Dokku
 
-This is an experimental terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Only a small subset of configuration options are currently supported.
-
-This provider is not yet published, but the intent is to do so once a wider subset of configuration options are provided.
+This is an experimental terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Only a small subset of configuration options are currently supported, and bugs may exist.
 
 ## Getting started
 
@@ -86,7 +84,7 @@ terraform {
   required_providers {
     dokku = {
       version = "0.1"
-      source  = "hashicorp.com/aaronstillwell/dokku"
+      source  = "aaronstillwell/dokku"
     }
   }
 }
