@@ -11,7 +11,7 @@ terraform {
   required_providers {
     dokku = {
       version = "0.1"
-      source  = "hashicorp.com/aaronstillwell/dokku"
+      source  = "aaronstillwell/dokku"
     }
   }
 }
