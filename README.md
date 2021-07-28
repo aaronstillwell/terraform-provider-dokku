@@ -23,7 +23,7 @@ provider "dokku" {
   ssh_host = "dokku.me"
   ssh_user = "dokku"
   ssh_port = 8022
-  ssh_cert = "~/.ssh/dokku-cert"
+  ssh_cert = "/home/user/.ssh/dokku-cert"
 }
 ```
 
