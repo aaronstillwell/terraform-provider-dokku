@@ -136,7 +136,7 @@ func readAppConfig(appName string, sshClient *goph.Client) map[string]string {
 		kp = strings.TrimSpace(kp)
 		if len(kp) > 0 {
 			parts := strings.Split(kp, ":")
-			configKey := parts[0]
+			configKey := strings.TrimSpace(parts[0])
 			configValue := strings.TrimSpace(parts[1])
 
 			config[configKey] = configValue
@@ -217,7 +217,10 @@ func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.C
 		return nil
 	}
 	log.Printf("[DEBUG] Unsetting keys %v\n", varsToUnset)
-	_, err := client.Run(fmt.Sprintf("config:unset %s", strings.Join(varsToUnset, " ")))
+	cmd := fmt.Sprintf("config:unset %s %s", app.Name, strings.Join(varsToUnset, " "))
+	log.Printf("[DEBUG] running %s", cmd)
+	_, err := client.Run(cmd)
+
 	return err
 }
 
