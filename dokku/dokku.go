@@ -137,9 +137,14 @@ func readAppConfig(appName string, sshClient *goph.Client) map[string]string {
 		if len(kp) > 0 {
 			parts := strings.Split(kp, ":")
 			configKey := strings.TrimSpace(parts[0])
-			configValue := strings.TrimSpace(parts[1])
 
-			config[configKey] = configValue
+			configVal := parts[1]
+			if len(parts[1]) > 1 {
+				configVal = strings.Join(parts[1:], ":")
+			}
+			configVal = strings.TrimSpace(configVal)
+
+			config[configKey] = configVal
 		}
 	}
 
