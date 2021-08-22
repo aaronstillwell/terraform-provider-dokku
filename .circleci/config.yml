@@ -4,6 +4,7 @@ orbs:
   goreleaser: hubci/goreleaser@1.0.0
   go: circleci/go@1.7.0
   terraform: circleci/terraform@2.1.0
+  docker: circleci/docker@1.6.0
 
 executors:
   default:
@@ -35,6 +36,7 @@ jobs:
           version: "1.16"
       - terraform/install:
           terraform_version: "1.0.5"
+      - docker/install-dockerize
       - run:
           name: Pull dokku image
           command: |
@@ -57,6 +59,9 @@ jobs:
               --volume /var/run/docker.sock:/var/run/docker.sock \
               -d \
               dokku/dokku:<< parameters.dokku-version >>
+      - run:
+          name: Wait for SSH on dokku container
+          command: dockerize -wait tcp://127.0.0.1:3022
       - run:
           name: Setup SSH key with container
           command: |
