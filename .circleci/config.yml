@@ -32,9 +32,9 @@ jobs:
     steps:
       - checkout
       - go/install:
-          version: 1.16
+          version: "1.16"
       - terraform/install:
-          version: 1.0.5
+          terraform_version: "1.0.5"
       - run:
           name: Pull dokku image
           command: |
