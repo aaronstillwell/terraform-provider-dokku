@@ -6,16 +6,25 @@ orbs:
   terraform: circleci/terraform@2.1.0
   wait-for: cobli/wait-for@0.0.2
 
+parameters:
+  go-version:
+    type: enum
+    enum: ["1.16"]
+    default: "1.16"
+
 executors:
   default:
     docker:
-      - image: cimg/go:1.16
+      - image: cimg/go:<< pipeline.parameters.go-version >>
 
 jobs:
   build:
     executor: default
     steps:
       - checkout
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
       - run:
           name: Build provider
           command: make install
@@ -33,7 +42,8 @@ jobs:
     steps:
       - checkout
       - go/install:
-          version: "1.16"
+          version: << pipeline.parameters.go-version >>
+      - go/load-cache
       - terraform/install:
           terraform_version: "1.0.5"
       - run:
@@ -65,7 +75,7 @@ jobs:
             sudo docker cp dokku-ssh.pub dokku:/tmp/dokku-ssh.pub
             sudo docker exec dokku dokku ssh-keys:add dokku dokku-ssh.pub
       - wait-for/sh-command:
-          timeout: 90
+          timeout: 180
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
       - run:
           name: Run acceptance tests
