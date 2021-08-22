@@ -1,0 +1,2 @@
+postgres: https://github.com/dokku/dokku-postgres.git
+redis: https://github.com/dokku/dokku-redis.git

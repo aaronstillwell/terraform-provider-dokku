@@ -2,6 +2,8 @@ version: 2.1
 
 orbs:
   goreleaser: hubci/goreleaser@1.0.0
+  go: circleci/go@1.7.0
+  terraform: circleci/terraform@2.1.0
 
 executors:
   default:
@@ -16,6 +18,56 @@ jobs:
       - run:
           name: Build provider
           command: make install
+
+  acceptance-tests:
+    parameters:
+      dokku-version:
+        type: string
+    environment:
+      DOKKU_SSH_HOST: "127.0.0.1"
+      DOKKU_SSH_PORT: 3022
+      DOKKU_SSH_CERT: "/tmp/dokku-ssh"
+    machine:
+      image: ubuntu-2004:202010-01
+    steps:
+      - checkout
+      - go/install:
+          version: 1.16
+      - terraform/install:
+          version: 1.0.5
+      - run:
+          name: Pull dokku image
+          command: |
+            sudo docker pull dokku/dokku:<< parameters.dokku-version >>
+      - run:
+          name: Setup dokku plugins
+          command: |
+            sudo mkdir -p /var/lib/dokku
+            sudo cp .circleci/plugin-list /var/lib/dokku/
+      - run:
+          name: Start dokku container
+          command: |
+            sudo docker container run \
+              --env DOKKU_HOSTNAME=dokku.me \
+              --name dokku \
+              --publish 3022:22 \
+              --publish 8080:80 \
+              --publish 8443:443 \
+              --volume /var/lib/dokku:/mnt/dokku \
+              --volume /var/run/docker.sock:/var/run/docker.sock \
+              -d \
+              dokku/dokku:<< parameters.dokku-version >>
+      - run:
+          name: Setup SSH key with container
+          command: |
+            ssh-keygen -t rsa -N "" -f dokku-ssh
+            sudo docker cp dokku-ssh.pub dokku:/tmp/dokku-ssh.pub
+            sudo cp dokku-ssh /tmp/dokku-ssh # easy absolute path to ref later
+            sudo docker exec dokku dokku ssh-keys:add dokku dokku-ssh.pub
+            ssh -i dokku-ssh dokku@127.0.0.1 -p 3022 # Test local SSH connection
+      - run:
+          name: Run acceptance tests
+          command: make testacc
 
   release:
     parameters:
@@ -41,6 +93,13 @@ workflows:
     jobs:
       - build
 
+      - acceptance-tests:
+          matrix:
+            parameters:
+              dokku-version: ["0.24.10", "0.25.1"]
+          requires:
+            - build
+
       - release:
           context:
             - github-release
@@ -51,16 +110,3 @@ workflows:
             branches:
               ignore:
                 - /.*/
-
-      - release:
-          name: release-dry-run
-          dry-run: true
-          context:
-            - github-release
-            - oss-signing-key
-          filters:
-            branches:
-              only:
-                - main
-          requires:
-            - build
