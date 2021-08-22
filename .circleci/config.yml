@@ -4,7 +4,7 @@ orbs:
   goreleaser: hubci/goreleaser@1.0.0
   go: circleci/go@1.7.0
   terraform: circleci/terraform@2.1.0
-  docker: circleci/docker@1.6.0
+  wait-for: cobli/wait-for@0.0.2
 
 executors:
   default:
@@ -36,7 +36,6 @@ jobs:
           version: "1.16"
       - terraform/install:
           terraform_version: "1.0.5"
-      - docker/install-dockerize
       - run:
           name: Pull dokku image
           command: |
@@ -60,16 +59,15 @@ jobs:
               -d \
               dokku/dokku:<< parameters.dokku-version >>
       - run:
-          name: Wait for SSH on dokku container
-          command: dockerize -wait tcp://127.0.0.1:3022
-      - run:
           name: Setup SSH key with container
           command: |
             ssh-keygen -t rsa -N "" -f dokku-ssh
             sudo docker cp dokku-ssh.pub dokku:/tmp/dokku-ssh.pub
             sudo cp dokku-ssh /tmp/dokku-ssh # easy absolute path to ref later
             sudo docker exec dokku dokku ssh-keys:add dokku dokku-ssh.pub
-            ssh -i dokku-ssh dokku@127.0.0.1 -p 3022 # Test local SSH connection
+      - wait-for/sh-command:
+          timeout: 90
+          sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
       - run:
           name: Run acceptance tests
           command: make testacc
