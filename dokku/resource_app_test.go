@@ -105,6 +105,119 @@ resource "dokku_app" "test" {
 	})
 }
 
+func TestRenameApp(t *testing.T) {
+	appName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
+	newName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	config_vars = {
+		FOO2 = "BAR:FOO"
+	}
+	domains = ["test.dokku.me2"]
+}				
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
+					testAccCheckDokkuDomain("dokku_app.test", "test.dokku.me2"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	config_vars = {
+		FOO2 = "BAR:FOO"
+	}
+	domains = ["test.dokku.me2"]
+}				
+`, newName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
+					testAccCheckDokkuDomain("dokku_app.test", "test.dokku.me2"),
+				),
+			},
+		},
+	})
+}
+
+func TestSetAppConfigVars(t *testing.T) {
+	appName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}				
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	config_vars = {
+		FOO2 = "BAR:FOO"
+	}
+}`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
+				),
+			},
+		},
+	})
+}
+
+func TestUnsetAppConfigVar(t *testing.T) {
+	appName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	config_vars = {
+		FOO2 = "BAR:FOO"
+	}
+}				
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVarUnset("dokku_app.test", "FOO2"),
+				),
+			},
+		},
+	})
+}
+
 //
 func testAccCheckDokkuAppExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
@@ -155,6 +268,32 @@ func testAccCheckDokkuAppConfigVar(n string, varName string, varValue string) re
 
 		if val != varValue {
 			return fmt.Errorf("Config var expected to be %s, was %s", varValue, val)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuAppConfigVarUnset(n string, varName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		_, ok = app.ConfigVars[varName]
+
+		if ok {
+			return fmt.Errorf("Config var %s was found but expected to be unset", varName)
 		}
 
 		return nil
