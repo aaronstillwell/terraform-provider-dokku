@@ -80,7 +80,7 @@ jobs:
             sudo docker cp dokku-ssh.pub dokku:/tmp/dokku-ssh.pub
             sudo docker exec dokku dokku ssh-keys:add dokku dokku-ssh.pub
       - wait-for/sh-command:
-          timeout: 180
+          timeout: 300
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
       - run:
           name: Run acceptance tests
@@ -113,7 +113,7 @@ workflows:
       - acceptance-tests:
           matrix:
             parameters:
-              dokku-version: ["0.24.10", "0.25.1"]
+              dokku-version: ["0.24.10", "0.25.2"]
           requires:
             - build
 
