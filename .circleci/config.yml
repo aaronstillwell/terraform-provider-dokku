@@ -51,6 +51,11 @@ jobs:
           command: |
             sudo docker pull dokku/dokku:<< parameters.dokku-version >>
       - run:
+          name: Pull other images used in testing
+          command: |
+            sudo docker pull circleci/postgres:9.6.16-alpine-ram
+            sudo docker pull circleci/redis:6.2.5
+      - run:
           name: Setup dokku plugins
           command: |
             sudo mkdir -p /var/lib/dokku

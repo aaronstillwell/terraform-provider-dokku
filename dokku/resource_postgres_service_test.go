@@ -1,0 +1,139 @@
+package dokku
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/melbahja/goph"
+)
+
+func TestAccPostgresService(t *testing.T) {
+	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testPgServiceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(),
+			},
+		},
+	})
+}
+
+func TestAccPostgresServiceImage(t *testing.T) {
+	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testPgServiceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+	image = "circleci/postgres"
+	image_version = "9.6.16-alpine-ram"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "circleci/postgres", "9.6.16-alpine-ram"),
+				),
+			},
+		},
+	})
+}
+
+func testAccCheckPgServiceExists(n string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("Service ID not present")
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		service := NewDokkuPostgresService(rs.Primary.ID)
+		err := dokkuPgRead(service, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error reading pg resource %s", rs.Primary.ID)
+		}
+
+		if service.Id == "" {
+			return fmt.Errorf("Service %s was not created", rs.Primary.ID)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckPgServiceImageAndVersion(n string, image string, version string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("Service ID not present")
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		service := NewDokkuPostgresService(rs.Primary.ID)
+		err := dokkuPgRead(service, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error reading pg resource %s", rs.Primary.ID)
+		}
+
+		if service.Image != image {
+			return fmt.Errorf("Image expected to be %s, got %s", image, service.Image)
+		}
+
+		if service.ImageVersion != version {
+			return fmt.Errorf("Image version expected to be %s, got %s", version, service.ImageVersion)
+		}
+
+		return nil
+	}
+}
+
+func testPgServiceDestroy(s *terraform.State) error {
+	sshClient := testAccProvider.Meta().(*goph.Client)
+
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "dokku_postgres_service" {
+			continue
+		}
+
+		service := NewDokkuPostgresService(rs.Primary.ID)
+		err := dokkuPgRead(service, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Dokku postgres service %s could not be read: %v", rs.Primary.ID, err)
+		}
+
+		if service.Id != "" {
+			return fmt.Errorf("Dokku postgres service %s should not exist", rs.Primary.ID)
+		}
+	}
+
+	return nil
+}
