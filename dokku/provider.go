@@ -2,9 +2,12 @@ package dokku
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"regexp"
 
+	"github.com/blang/semver"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/melbahja/goph"
@@ -15,25 +18,30 @@ import (
 func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
-			"ssh_host": &schema.Schema{
+			"ssh_host": {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_HOST", nil),
 			},
-			"ssh_user": &schema.Schema{
+			"ssh_user": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_USER", "dokku"),
 			},
-			"ssh_port": &schema.Schema{
+			"ssh_port": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_PORT", 22),
 			},
-			"ssh_cert": &schema.Schema{
+			"ssh_cert": {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_CERT", nil),
+			},
+			"fail_on_untested_version": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("DOKKU_FAIL_ON_UNTESTED_VERSION", true),
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
@@ -117,6 +125,39 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	if err != nil {
 		diag.Errorf("Could not establish SSH connection")
 		log.Fatal(err)
+	}
+
+	out, err := client.Run("version")
+
+	re := regexp.MustCompile("[0-9]+\\.[0-9]+\\.[0-9]+")
+	found := re.Find(out)
+
+	hostVersion, err := semver.Parse(string(found))
+
+	log.Printf("[DEBUG] host version %v", hostVersion)
+
+	testedVersions := ">=0.24.0 <=0.25.2"
+	testedErrMsg := fmt.Sprintf("This provider has not been tested against Dokku version %s. Tested version range: %s", string(found), testedVersions)
+
+	if err == nil {
+		compat, _ := semver.ParseRange(testedVersions)
+
+		if !compat(hostVersion) {
+
+			log.Printf("[DEBUG] fail_on_untested_version: %v", d.Get("fail_on_untested_version").(bool))
+
+			if d.Get("fail_on_untested_version").(bool) {
+				return client, diag.Errorf(testedErrMsg)
+			}
+			warn := diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  testedErrMsg,
+			}
+			diags = append(diags, warn)
+			return client, diags
+		}
+	} else {
+		return client, diag.Errorf("Could not detect dokku version - tested version range: %s", testedVersions)
 	}
 
 	return client, diags
