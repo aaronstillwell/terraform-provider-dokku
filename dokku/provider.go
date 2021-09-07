@@ -110,7 +110,8 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	auth, err := goph.Key(certPath, "")
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("[ERROR]: %v", err)
+		return nil, diag.Errorf("Could not find private key %s: %v", certPath, err)
 	}
 
 	sshConfig := &goph.Config{
@@ -123,8 +124,8 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	client, err := goph.NewConn(sshConfig)
 	if err != nil {
-		diag.Errorf("Could not establish SSH connection")
-		log.Fatal(err)
+		log.Printf("[ERROR]: %v", err)
+		return nil, diag.Errorf("Could not establish SSH connection: %v", err)
 	}
 
 	out, err := client.Run("version")
