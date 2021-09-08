@@ -30,6 +30,10 @@ func serviceLinkCreate(d *schema.ResourceData, serviceName string, client *goph.
 	_, err := client.Run(cmd)
 
 	// TODO better error handling, e.g app already created
+	if err != nil {
+		log.Printf("[DEBUG] Could not create service link\n")
+		log.Printf("[DEBUG] %s\n", err)
+	}
 
 	d.SetId(fmt.Sprintf("%s-%s", d.Get("service").(string), d.Get("app").(string)))
 
@@ -51,7 +55,7 @@ func serviceLinkRead(d *schema.ResourceData, serviceName string, client *goph.Cl
 
 	if err != nil {
 		// TODO use stdout as extra verification?
-		if err.Error() == "Process exited with status 1" {
+		if err.Error() == "Process exited with status 1" || err.Error() == "Process exited with status 20" {
 			d.SetId("")
 			return nil
 		}
