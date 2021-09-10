@@ -55,7 +55,11 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 
 	app := NewDokkuAppFromResourceData(d)
 
-	dokkuAppCreate(app, sshClient)
+	err := dokkuAppCreate(app, sshClient)
+
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
 	d.SetId(app.Name)
 
