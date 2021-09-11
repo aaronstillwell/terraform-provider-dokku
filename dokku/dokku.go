@@ -82,21 +82,19 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 
 //
 func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
-	readOutput, err := client.Run(fmt.Sprintf("apps:exists %s", appName))
-	log.Printf("[DEBUG] apps:exists %v\n", string(readOutput))
-	log.Printf("[DEBUG] error from apps:exists %v\n", err)
+	res := run(client, fmt.Sprintf("apps:exists %s", appName))
 
 	app := &DokkuApp{Id: appName, Name: appName, Locked: false}
 
-	if err != nil {
-		if err.Error() == "Process exited with status 20" {
+	if res.err != nil {
+		if res.status == 20 {
 			// App does not exist
 			app.Id = ""
 			log.Printf("[DEBUG] app %s does not exist\n", appName)
 			// return nil, err
 			return app, nil
 		} else {
-			return nil, err
+			return nil, res.err
 		}
 	}
 
@@ -118,13 +116,13 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 
 // TODO error handling
 func readAppConfig(appName string, sshClient *goph.Client) map[string]string {
-	configOutput, _ := sshClient.Run(fmt.Sprintf("config:show %s", appName))
+	res := run(sshClient, fmt.Sprintf("config:show %s", appName))
 
 	// if err {
 	// 	// TODO
 	// }
 
-	configLines := strings.Split(string(configOutput), "\n")
+	configLines := strings.Split(res.stdout, "\n")
 
 	// TODO validate first line of output
 
@@ -153,13 +151,13 @@ func readAppConfig(appName string, sshClient *goph.Client) map[string]string {
 
 //
 func readAppDomains(appName string, client *goph.Client) ([]string, error) {
-	domainsOutput, err := client.Run(fmt.Sprintf("domains:report %s", appName))
+	res := run(client, fmt.Sprintf("domains:report %s", appName))
 
-	if err != nil {
-		return nil, err
+	if res.err != nil {
+		return nil, res.err
 	}
 
-	domainLines := strings.Split(string(domainsOutput), "\n")[1:]
+	domainLines := strings.Split(res.stdout, "\n")[1:]
 
 	for _, line := range domainLines {
 		parts := strings.Split(line, ":")
@@ -182,15 +180,15 @@ func readAppDomains(appName string, client *goph.Client) ([]string, error) {
 
 //
 func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
-	createOutput, err := client.Run(fmt.Sprintf("apps:create %s", app.Name))
+	res := run(client, fmt.Sprintf("apps:create %s", app.Name))
 
-	log.Printf("[DEBUG] apps:create %v\n", string(createOutput))
+	log.Printf("[DEBUG] apps:create %v\n", res.stdout)
 
-	if err != nil {
-		return err
+	if res.err != nil {
+		return res.err
 	}
 
-	err = dokkuAppConfigVarsSet(app, client)
+	err := dokkuAppConfigVarsSet(app, client)
 
 	if err != nil {
 		return err
@@ -212,8 +210,8 @@ func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
 		return nil
 	}
 
-	_, err := client.Run(fmt.Sprintf("config:set %s %s", app.Name, configVarStr))
-	return err
+	res := run(client, fmt.Sprintf("config:set %s %s", app.Name, configVarStr))
+	return res.err
 }
 
 //
@@ -224,26 +222,26 @@ func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.C
 	log.Printf("[DEBUG] Unsetting keys %v\n", varsToUnset)
 	cmd := fmt.Sprintf("config:unset %s %s", app.Name, strings.Join(varsToUnset, " "))
 	log.Printf("[DEBUG] running %s", cmd)
-	_, err := client.Run(cmd)
+	res := run(client, cmd)
 
-	return err
+	return res.err
 }
 
 //
 func dokkuAppDomainsAdd(app *DokkuApp, client *goph.Client) error {
 	domainStr := strings.Join(app.Domains, " ")
-	_, err := client.Run(fmt.Sprintf("domains:set %s %s", app.Name, domainStr))
-	return err
+	res := run(client, fmt.Sprintf("domains:set %s %s", app.Name, domainStr))
+	return res.err
 }
 
 //
 func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) error {
 	if d.HasChange("name") {
 		old, _ := d.GetChange("name")
-		renameOutput, err := client.Run(fmt.Sprintf("apps:rename %s %s", old.(string), d.Get("name")))
-		log.Printf("[DEBUG] apps:rename %s %s : %v\n", old.(string), d.Get("name"), renameOutput)
-		if err != nil {
-			return err
+		res := run(client, fmt.Sprintf("apps:rename %s %s", old.(string), d.Get("name")))
+		log.Printf("[DEBUG] apps:rename %s %s : %v\n", old.(string), d.Get("name"), res.stdout)
+		if res.err != nil {
+			return res.err
 		}
 	}
 
@@ -271,10 +269,10 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 
 		if len(upsertParts) > 0 {
 			log.Printf("[DEBUG] Setting keys %v\n", keysToUpsert)
-			_, err := client.Run(fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")))
+			res := run(client, fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")))
 
-			if err != nil {
-				return err
+			if res.err != nil {
+				return res.err
 			}
 		}
 	}
@@ -286,17 +284,17 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		domainsToRemove := calculateMissingStrings(newDomains, oldDomains)
 
 		// Remove domains
-		_, err := client.Run(fmt.Sprintf("domains:remove %s %s", appName, strings.Join(domainsToRemove, " ")))
+		res := run(client, fmt.Sprintf("domains:remove %s %s", appName, strings.Join(domainsToRemove, " ")))
 
-		if err != nil {
-			return err
+		if res.err != nil {
+			return res.err
 		}
 
 		// Add domains
-		_, err = client.Run(fmt.Sprintf("domains:add %s %s", appName, strings.Join(newDomains, " ")))
+		res = run(client, fmt.Sprintf("domains:add %s %s", appName, strings.Join(newDomains, " ")))
 
-		if err != nil {
-			return err
+		if res.err != nil {
+			return res.err
 		}
 	}
 

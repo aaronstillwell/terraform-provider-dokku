@@ -27,17 +27,17 @@ func serviceLinkCreate(d *schema.ResourceData, serviceName string, client *goph.
 
 	cmd := fmt.Sprintf("%s:link %s %s %s", serviceName, d.Get("service"), d.Get("app"), optionsCmd)
 	log.Printf("[DEBUG] running `%s`", cmd)
-	_, err := client.Run(cmd)
+	res := run(client, cmd)
 
 	// TODO better error handling, e.g app already created
-	if err != nil {
+	if res.err != nil {
 		log.Printf("[DEBUG] Could not create service link\n")
-		log.Printf("[DEBUG] %s\n", err)
+		log.Printf("[DEBUG] %s\n", res.err)
 	}
 
 	d.SetId(fmt.Sprintf("%s-%s", d.Get("service").(string), d.Get("app").(string)))
 
-	return err
+	return res.err
 }
 
 // Reading a service link is currently limited by the info we can get from dokku. We can only
@@ -49,27 +49,27 @@ func serviceLinkCreate(d *schema.ResourceData, serviceName string, client *goph.
 func serviceLinkRead(d *schema.ResourceData, serviceName string, client *goph.Client) error {
 	cmd := fmt.Sprintf("%s:linked %s %s", serviceName, d.Get("service"), d.Get("app"))
 	log.Println(fmt.Sprintf("[DEBUG] running `%s`", cmd))
-	_, err := client.Run(cmd)
+	res := run(client, cmd)
 
 	d.SetId(fmt.Sprintf("%s-%s", d.Get("service").(string), d.Get("app").(string)))
 
-	if err != nil {
+	if res.err != nil {
 		// TODO use stdout as extra verification?
-		if err.Error() == "Process exited with status 1" || err.Error() == "Process exited with status 20" {
+		if res.status == 1 || res.status == 20 {
 			d.SetId("")
 			return nil
 		}
 	}
 
-	return err
+	return res.err
 }
 
 //
 func serviceLinkDelete(d *schema.ResourceData, serviceName string, client *goph.Client) error {
-	_, err := client.Run(fmt.Sprintf("%s:unlink %s %s", serviceName, d.Get("service"), d.Get("app")))
+	res := run(client, fmt.Sprintf("%s:unlink %s %s", serviceName, d.Get("service"), d.Get("app")))
 
-	if err == nil {
+	if res.err == nil {
 		d.SetId("")
 	}
-	return err
+	return res.err
 }

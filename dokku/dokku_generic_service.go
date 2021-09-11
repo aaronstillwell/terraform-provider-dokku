@@ -87,22 +87,22 @@ func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...strin
 
 //
 func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
-	serviceInfo, err := client.Run(service.Cmd("info", service.Name))
+	res := run(client, service.Cmd("info", service.Name))
 
-	if err != nil {
-		if err.Error() == "Process exited with status 1" {
+	if res.err != nil {
+		if res.status == 1 {
 			// Service does not exist
 			service.Id = ""
 			log.Printf("[DEBUG] %s service %s does not exist\n", service.CmdName, service.Name)
 			// return nil, err
 			return nil
 		} else {
-			return err
+			return res.err
 		}
 	}
 	service.Id = service.Name
 
-	infoLines := strings.Split(string(serviceInfo), "\n")[1:]
+	infoLines := strings.Split(res.stdout, "\n")[1:]
 
 	for _, ln := range infoLines {
 		lnPart := strings.Split(ln, ":")
@@ -122,18 +122,17 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 
 //
 func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error {
-	_, err := client.Run(fmt.Sprintf("%s:create %s %s", service.CmdName, service.Name, createServiceFlagStr(service)))
+	res := run(client, fmt.Sprintf("%s:create %s %s", service.CmdName, service.Name, createServiceFlagStr(service)))
 
-	if err != nil {
-		return err
+	if res.err != nil {
+		return res.err
 	} else {
 		// Service was created, stop it if necessary
 		if service.Stopped {
-			var err error
-			_, err = client.Run(fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))
+			res = run(client, fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))
 
-			if err != nil {
-				return err
+			if res.err != nil {
+				return res.err
 			}
 		}
 
@@ -166,13 +165,13 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 
 		log.Printf("[DEBUG] running dokku %s:clone %s -> %s\n", service.CmdName, oldServiceName, cloneServiceName)
 		createFlags := createServiceFlagStr(service)
-		_, err := client.Run(fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, oldServiceName, cloneServiceName, createFlags))
+		res := run(client, fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, oldServiceName, cloneServiceName, createFlags))
 
-		if err != nil {
-			return err
+		if res.err != nil {
+			return res.err
 		}
 
-		err = dokkuServiceDestroy(service.CmdName, oldServiceName, client)
+		err := dokkuServiceDestroy(service.CmdName, oldServiceName, client)
 		if err != nil {
 			return err
 		}
@@ -180,10 +179,10 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 		if !d.HasChange("name") {
 			// Clone again to the original name
 			log.Printf("[DEBUG] running dokku %s:clone %s -> %s\n", service.CmdName, cloneServiceName, d.Get("name"))
-			_, err = client.Run(fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, cloneServiceName, d.Get("name"), createFlags))
+			res = run(client, fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, cloneServiceName, d.Get("name"), createFlags))
 
-			if err != nil {
-				return err
+			if res.err != nil {
+				return res.err
 			}
 
 			err = dokkuServiceDestroy(service.CmdName, cloneServiceName, client)
@@ -205,23 +204,23 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 
 		log.Printf("[DEBUG] running `dokku %s`\n", updateStr)
 
-		_, err := client.Run(updateStr)
+		res := run(client, updateStr)
 
-		if err != nil {
-			return err
+		if res.err != nil {
+			return res.err
 		}
 	}
 
 	if d.HasChange("stopped") {
-		var err error
+		var res SshOutput
 		if d.Get("stopped").(bool) {
-			_, err = client.Run(fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))
+			res = run(client, fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))
 		} else {
-			_, err = client.Run(fmt.Sprintf("%s:start %s", service.CmdName, service.Name))
+			res = run(client, fmt.Sprintf("%s:start %s", service.CmdName, service.Name))
 		}
 
-		if err != nil {
-			return err
+		if res.err != nil {
+			return res.err
 		}
 	}
 
@@ -231,7 +230,7 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 //
 func dokkuServiceDestroy(cmd string, serviceName string, client *goph.Client) error {
 	log.Printf("[DEBUG] running %s:destroy on %s\n", cmd, serviceName)
-	_, err := client.Run(fmt.Sprintf("%s:destroy %s -f", cmd, serviceName))
+	res := run(client, fmt.Sprintf("%s:destroy %s -f", cmd, serviceName))
 
-	return err
+	return res.err
 }

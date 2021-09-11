@@ -112,10 +112,10 @@ func appDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 
 	appName := d.Get("name").(string)
 
-	_, err := sshClient.Run(fmt.Sprintf("apps:destroy %s --force", appName))
+	res := run(sshClient, fmt.Sprintf("apps:destroy %s --force", appName))
 
-	if err != nil {
-		return diag.FromErr(err)
+	if res.err != nil {
+		return diag.FromErr(res.err)
 	}
 
 	return diags

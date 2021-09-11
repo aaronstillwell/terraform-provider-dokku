@@ -128,10 +128,10 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 		return nil, diag.Errorf("Could not establish SSH connection: %v", err)
 	}
 
-	out, err := client.Run("version")
+	res := run(client, "version")
 
 	re := regexp.MustCompile("[0-9]+\\.[0-9]+\\.[0-9]+")
-	found := re.Find(out)
+	found := re.FindString(res.stdout)
 
 	hostVersion, err := semver.Parse(string(found))
 

@@ -35,14 +35,14 @@ func dataSourceApps() *schema.Resource {
 
 //
 func dataSourceAppsRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	ssh_client := m.(*goph.Client)
-	out, err := ssh_client.Run("apps:list")
+	client := m.(*goph.Client)
+	res := run(client, "apps:list")
 
-	if err != nil {
-		diag.FromErr(err)
+	if res.err != nil {
+		diag.FromErr(res.err)
 	}
 
-	appsOutput := string(out)
+	appsOutput := res.stdout
 
 	var diags diag.Diagnostics
 
