@@ -37,6 +37,8 @@ jobs:
       DOKKU_SSH_HOST: "127.0.0.1"
       DOKKU_SSH_PORT: 3022
       DOKKU_SSH_CERT: "/home/circleci/project/dokku-ssh"
+      TF_LOG: DEBUG
+      TF_LOG_PATH: terraform.log
     machine:
       image: ubuntu-2004:202010-01
     steps:
@@ -85,6 +87,8 @@ jobs:
       - run:
           name: Run acceptance tests
           command: make testacc
+      - store_artifacts:
+          path: terraform.log
 
   release:
     parameters:
