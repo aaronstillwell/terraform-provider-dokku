@@ -117,7 +117,7 @@ workflows:
       - acceptance-tests:
           matrix:
             parameters:
-              dokku-version: ["0.24.10", "0.25.3"]
+              dokku-version: ["0.24.10", "0.25.4"]
           requires:
             - build
 
