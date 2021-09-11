@@ -230,8 +230,12 @@ func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.C
 //
 func dokkuAppDomainsAdd(app *DokkuApp, client *goph.Client) error {
 	domainStr := strings.Join(app.Domains, " ")
-	res := run(client, fmt.Sprintf("domains:set %s %s", app.Name, domainStr))
-	return res.err
+
+	if len(domainStr) > 0 {
+		res := run(client, fmt.Sprintf("domains:set %s %s", app.Name, domainStr))
+		return res.err
+	}
+	return nil
 }
 
 //
