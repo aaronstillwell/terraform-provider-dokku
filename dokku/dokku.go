@@ -288,17 +288,25 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		domainsToRemove := calculateMissingStrings(newDomains, oldDomains)
 
 		// Remove domains
-		res := run(client, fmt.Sprintf("domains:remove %s %s", appName, strings.Join(domainsToRemove, " ")))
+		oldDomainsStr := strings.Join(domainsToRemove, " ")
 
-		if res.err != nil {
-			return res.err
+		if len(oldDomainsStr) > 0 {
+			res := run(client, fmt.Sprintf("domains:remove %s %s", appName, oldDomainsStr))
+
+			if res.err != nil {
+				return res.err
+			}
 		}
 
 		// Add domains
-		res = run(client, fmt.Sprintf("domains:add %s %s", appName, strings.Join(newDomains, " ")))
+		newDomainsStr := strings.Join(newDomains, " ")
 
-		if res.err != nil {
-			return res.err
+		if len(newDomainsStr) > 0 {
+			res := run(client, fmt.Sprintf("domains:add %s %s", appName, newDomainsStr))
+
+			if res.err != nil {
+				return res.err
+			}
 		}
 	}
 

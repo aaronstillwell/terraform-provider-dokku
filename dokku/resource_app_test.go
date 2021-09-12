@@ -71,7 +71,7 @@ resource "dokku_app" "test" {
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuDomain("dokku_app.test", "test.dokku.me"),
+					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me"),
 				),
 			},
 		},
@@ -98,7 +98,7 @@ resource "dokku_app" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
 					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
-					testAccCheckDokkuDomain("dokku_app.test", "test.dokku.me2"),
+					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me2"),
 				),
 			},
 		},
@@ -126,7 +126,7 @@ resource "dokku_app" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
 					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
-					testAccCheckDokkuDomain("dokku_app.test", "test.dokku.me2"),
+					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me2"),
 				),
 			},
 			{
@@ -142,7 +142,7 @@ resource "dokku_app" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
 					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
-					testAccCheckDokkuDomain("dokku_app.test", "test.dokku.me2"),
+					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me2"),
 				),
 			},
 		},
@@ -212,6 +212,76 @@ resource "dokku_app" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
 					testAccCheckDokkuAppConfigVarUnset("dokku_app.test", "FOO2"),
+				),
+			},
+		},
+	})
+}
+
+func TestSetAppDomain(t *testing.T) {
+	appName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppDomainsLen("dokku_app.test", 0),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	domains = ["test.dokku.me"]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppDomainsLen("dokku_app.test", 1),
+					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me"),
+				),
+			},
+		},
+	})
+}
+
+func TestUnsetAppDomain(t *testing.T) {
+	appName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	domains = ["test.dokku.me"]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppDomainsLen("dokku_app.test", 1),
+					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppDomainsLen("dokku_app.test", 0),
 				),
 			},
 		},
@@ -300,7 +370,7 @@ func testAccCheckDokkuAppConfigVarUnset(n string, varName string) resource.TestC
 	}
 }
 
-func testAccCheckDokkuDomain(n string, domains ...string) resource.TestCheckFunc {
+func testAccCheckDokkuAppDomain(n string, domains ...string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 
@@ -324,6 +394,30 @@ func testAccCheckDokkuDomain(n string, domains ...string) resource.TestCheckFunc
 			if app.Domains[k] != domains[k] {
 				return fmt.Errorf("Expected domain %s, got %s", domains[k], app.Domains[k])
 			}
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuAppDomainsLen(n string, nOfDomains int) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		if len(app.Domains) != nOfDomains {
+			return fmt.Errorf("Expected %d domains, got %d", nOfDomains, len(app.Domains))
 		}
 
 		return nil
