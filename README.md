@@ -10,7 +10,6 @@ This is an experimental terraform provider for provisioning apps on [Dokku](http
 terraform {
   required_providers {
     dokku = {
-      version = "0.1"
       source  = "aaronstillwell/dokku"
     }
   }
@@ -83,7 +82,6 @@ terraform init && terraform apply
 terraform {
   required_providers {
     dokku = {
-      version = "0.1"
       source  = "aaronstillwell/dokku"
     }
   }
@@ -119,7 +117,6 @@ resource "dokku_postgres_service" "rails-postgres" {
 
 resource "dokku_redis_service" "rails-redis" {
   name          = "rails-redis"
-  image_version = "6.2.4"
 }
 
 # Link the services to the app...
