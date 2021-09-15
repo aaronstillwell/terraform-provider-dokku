@@ -41,6 +41,11 @@ resource "dokku_app" "rails-app" {
   domains = [
     "test-2.dokku.me"
   ]
+
+  buildpacks = [
+    "https://github.com/heroku/heroku-buildpack-nodejs.git",
+    "https://github.com/heroku/heroku-buildpack-ruby.git"
+  ]
 }
 ```
 
@@ -106,6 +111,11 @@ resource "dokku_app" "rails-app" {
 
   domains = [
     "test-2.dokku.me"
+  ]
+
+  buildpacks = [
+    "https://github.com/heroku/heroku-buildpack-nodejs.git",
+    "https://github.com/heroku/heroku-buildpack-ruby.git"
   ]
 }
 

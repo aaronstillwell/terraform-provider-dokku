@@ -288,6 +288,131 @@ resource "dokku_app" "test" {
 	})
 }
 
+func TestAppBuildpacks(t *testing.T) {
+	appName := fmt.Sprintf("test-buildpack-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	buildpacks = ["https://github.com/heroku/heroku-buildpack-nodejs.git"]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuBuildpacks("dokku_app.test", "https://github.com/heroku/heroku-buildpack-nodejs.git"),
+				),
+			},
+		},
+	})
+}
+
+func TestAppAddBuildpack(t *testing.T) {
+	appName := fmt.Sprintf("test-buildpack-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+  buildpacks = [
+    "https://github.com/heroku/heroku-buildpack-nodejs.git",
+    "https://github.com/heroku/heroku-buildpack-ruby.git"
+  ]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuBuildpacks("dokku_app.test", "https://github.com/heroku/heroku-buildpack-nodejs.git", "https://github.com/heroku/heroku-buildpack-ruby.git"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	buildpacks = [
+		"https://github.com/heroku/heroku-buildpack-ruby.git",
+    "https://github.com/heroku/heroku-buildpack-nodejs.git"
+  ]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuBuildpacks("dokku_app.test", "https://github.com/heroku/heroku-buildpack-ruby.git", "https://github.com/heroku/heroku-buildpack-nodejs.git"),
+				),
+			},
+		},
+	})
+}
+
+func TestAppRemoveBuildpack(t *testing.T) {
+	appName := fmt.Sprintf("test-buildpack-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+  buildpacks = [
+    "https://github.com/heroku/heroku-buildpack-nodejs.git",
+    "https://github.com/heroku/heroku-buildpack-ruby.git"
+  ]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuBuildpacks("dokku_app.test", "https://github.com/heroku/heroku-buildpack-nodejs.git", "https://github.com/heroku/heroku-buildpack-ruby.git"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	buildpacks = [
+		"https://github.com/heroku/heroku-buildpack-ruby.git"
+  ]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuBuildpacks("dokku_app.test", "https://github.com/heroku/heroku-buildpack-ruby.git"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuBuildpacks("dokku_app.test"),
+				),
+			},
+		},
+	})
+}
+
 //
 func testAccCheckDokkuAppExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
@@ -418,6 +543,36 @@ func testAccCheckDokkuAppDomainsLen(n string, nOfDomains int) resource.TestCheck
 
 		if len(app.Domains) != nOfDomains {
 			return fmt.Errorf("Expected %d domains, got %d", nOfDomains, len(app.Domains))
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuBuildpacks(n string, buildpacks ...string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		if len(app.Buildpacks) != len(buildpacks) {
+			return fmt.Errorf("Expected %d buildpacks, got %d", len(buildpacks), len(app.Domains))
+		}
+
+		for k, _ := range app.Buildpacks {
+			if app.Buildpacks[k] != buildpacks[k] {
+				return fmt.Errorf("Expected buildpack %s, got %s", buildpacks[k], app.Buildpacks[k])
+			}
 		}
 
 		return nil

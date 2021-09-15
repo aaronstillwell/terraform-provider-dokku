@@ -16,6 +16,7 @@ type DokkuApp struct {
 	Locked     bool
 	ConfigVars map[string]string
 	Domains    []string
+	Buildpacks []string
 }
 
 //
@@ -27,6 +28,7 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	d.Set("config_vars", app.managedConfigVars(d))
 
 	d.Set("domains", app.Domains)
+	d.Set("buildpacks", app.Buildpacks)
 }
 
 // Leave alone config vars that are set outside of terraform. This is one way
@@ -66,6 +68,7 @@ func (app *DokkuApp) configVarsStr() string {
 
 func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 	domains := interfaceSliceToStrSlice(d.Get("domains").(*schema.Set).List())
+	buildpacks := interfaceSliceToStrSlice(d.Get("buildpacks").([]interface{}))
 
 	configVars := make(map[string]string)
 	for ck, cv := range d.Get("config_vars").(map[string]interface{}) {
@@ -77,6 +80,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		Locked:     d.Get("locked").(bool),
 		ConfigVars: configVars,
 		Domains:    domains,
+		Buildpacks: buildpacks,
 	}
 }
 
@@ -104,6 +108,12 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 		return nil, err
 	}
 	app.Domains = domains
+
+	buildpacks, err := readAppBuildpacks(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.Buildpacks = buildpacks
 
 	// ssl, err := readAppSsl(appName, client)
 	// if err != nil {
@@ -178,6 +188,29 @@ func readAppDomains(appName string, client *goph.Client) ([]string, error) {
 	return nil, nil
 }
 
+// TODO Some parsing logic here that is replicated elsewhere (e.g readAppDomains above)
+// which we can make reusable
+func readAppBuildpacks(appName string, client *goph.Client) ([]string, error) {
+	res := run(client, fmt.Sprintf("buildpacks:list %s", appName))
+
+	if res.err != nil {
+		return nil, res.err
+	}
+
+	buildpackLines := strings.Split(res.stdout, "\n")[1:]
+
+	buildpacks := []string{}
+
+	for _, line := range buildpackLines {
+		line = strings.TrimSpace(line)
+		if len(line) > 0 {
+			buildpacks = append(buildpacks, line)
+		}
+	}
+
+	return buildpacks, nil
+}
+
 //
 func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("apps:create %s", app.Name))
@@ -195,6 +228,12 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	}
 
 	err = dokkuAppDomainsAdd(app, client)
+
+	if err != nil {
+		return err
+	}
+
+	err = dokkuAppBuildpackAdd(app.Name, app.Buildpacks, client)
 
 	if err != nil {
 		return err
@@ -238,6 +277,21 @@ func dokkuAppDomainsAdd(app *DokkuApp, client *goph.Client) error {
 	return nil
 }
 
+// Add buildpacks to an app based on the DokkuApp instance
+func dokkuAppBuildpackAdd(appName string, buildpacks []string, client *goph.Client) error {
+	for _, pack := range buildpacks {
+		pack = strings.TrimSpace(pack)
+		if len(pack) > 0 {
+			res := run(client, fmt.Sprintf("buildpacks:add %s %s", appName, pack))
+
+			if res.err != nil {
+				return res.err
+			}
+		}
+	}
+	return nil
+}
+
 //
 func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) error {
 	if d.HasChange("name") {
@@ -249,7 +303,7 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		}
 	}
 
-	appName := d.Get("name")
+	appName := d.Get("name").(string)
 
 	if d.HasChange("config_vars") {
 		log.Println("[DEBUG] Changing config keys...")
@@ -308,6 +362,20 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 				return res.err
 			}
 		}
+	}
+
+	if d.HasChange("buildpacks") {
+		_, newBuildpacksI := d.GetChange("buildpacks")
+		newBuildpacks := interfaceSliceToStrSlice(newBuildpacksI.([]interface{}))
+
+		res := run(client, fmt.Sprintf("buildpacks:clear %s", appName))
+
+		if res.err != nil {
+			return res.err
+		}
+		app.Buildpacks = nil
+
+		dokkuAppBuildpackAdd(appName, newBuildpacks, client)
 	}
 
 	return nil

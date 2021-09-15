@@ -41,6 +41,13 @@ func resourceApp() *schema.Resource {
 				},
 				Optional: true,
 			},
+			"buildpacks": &schema.Schema{
+				Type: schema.TypeList,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Optional: true,
+			},
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
