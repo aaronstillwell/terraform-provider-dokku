@@ -48,6 +48,24 @@ func resourceApp() *schema.Resource {
 				},
 				Optional: true,
 			},
+			"ports": &schema.Schema{
+				Type: schema.TypeSet,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Optional: true,
+				// ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+				// 	v := val.([]string)
+
+				// 	for _, port := range v {
+				// 		isValidPort, _ := regexp.MatchString(`[A-z]+:[0-9]+:[0-9]+`, port)
+				// 		if !isValidPort {
+				// 			errs = append(errs, fmt.Errorf("Invalid port, expected format scheme:hostPort:containerPort e.g https:443:8080"))
+				// 		}
+				// 	}
+				// 	return []string{}, errs
+				// },
+			},
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,

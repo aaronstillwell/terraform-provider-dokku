@@ -17,6 +17,8 @@ type DokkuApp struct {
 	ConfigVars map[string]string
 	Domains    []string
 	Buildpacks []string
+	// slice of strings denoting schema:hostPort:containerPort
+	Ports []string
 }
 
 //
@@ -69,6 +71,7 @@ func (app *DokkuApp) configVarsStr() string {
 func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 	domains := interfaceSliceToStrSlice(d.Get("domains").(*schema.Set).List())
 	buildpacks := interfaceSliceToStrSlice(d.Get("buildpacks").([]interface{}))
+	ports := interfaceSliceToStrSlice(d.Get("ports").(*schema.Set).List())
 
 	configVars := make(map[string]string)
 	for ck, cv := range d.Get("config_vars").(map[string]interface{}) {
@@ -81,6 +84,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		ConfigVars: configVars,
 		Domains:    domains,
 		Buildpacks: buildpacks,
+		Ports:      ports,
 	}
 }
 
@@ -120,6 +124,12 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	// 	return nil, err
 	// }
 	// app.Ssl = ssl
+
+	ports, err := readAppPorts(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.Ports = ports
 
 	return app, nil
 }
@@ -212,6 +222,40 @@ func readAppBuildpacks(appName string, client *goph.Client) ([]string, error) {
 }
 
 //
+func readAppPorts(appName string, client *goph.Client) ([]string, error) {
+	res := run(client, fmt.Sprintf("proxy:ports %s", appName))
+
+	portsLines := strings.Split(res.stdout, "\n")
+
+	// returns status code 1 if no ports set
+	if len(portsLines) <= 2 || res.status == 1 {
+		return []string{}, nil
+	}
+	portsLines = portsLines[2:]
+
+	if res.err != nil {
+		return nil, res.err
+	}
+
+	var portMapping []string
+
+	for _, line := range portsLines {
+		split := strings.Split(line, " ")
+		var parts []string
+
+		for _, str := range split {
+			if strings.TrimSpace(str) != "" {
+				parts = append(parts, str)
+			}
+		}
+
+		portMapping = append(portMapping, strings.Join(parts, ":"))
+	}
+
+	return portMapping, nil
+}
+
+//
 func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("apps:create %s", app.Name))
 
@@ -239,7 +283,9 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 		return err
 	}
 
-	return nil
+	err = dokkuAppPortsAdd(app.Name, app.Ports, client)
+
+	return err
 }
 
 //
@@ -289,6 +335,22 @@ func dokkuAppBuildpackAdd(appName string, buildpacks []string, client *goph.Clie
 			}
 		}
 	}
+	return nil
+}
+
+//
+func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error {
+	for _, portRange := range ports {
+		portRange = strings.TrimSpace(portRange)
+		if len(portRange) > 0 {
+			res := run(client, fmt.Sprintf("proxy:ports-add %s %s", appName, portRange))
+
+			if res.err != nil {
+				return res.err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -376,6 +438,41 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		app.Buildpacks = nil
 
 		dokkuAppBuildpackAdd(appName, newBuildpacks, client)
+	}
+
+	if d.HasChange("ports") {
+		oldPortListI, newPortListI := d.GetChange("ports")
+		oldPortList := interfaceSliceToStrSlice(oldPortListI.(*schema.Set).List())
+		newPortList := interfaceSliceToStrSlice(newPortListI.(*schema.Set).List())
+
+		oldPortLookup := sliceToLookupMap(oldPortList)
+		newPortLookup := sliceToLookupMap(newPortList)
+
+		for _, p := range oldPortList {
+			if _, ok := newPortLookup[p]; !ok {
+				if len(p) > 0 {
+					// the old port isn't in the new one, lets remove it
+					res := run(client, fmt.Sprintf("proxy:ports-remove %s %s", appName, p))
+
+					if res.err != nil {
+						return res.err
+					}
+				}
+			}
+		}
+
+		for _, p := range newPortList {
+			if _, ok := oldPortLookup[p]; !ok {
+				if len(p) > 0 {
+					// new port missing, lets add it
+					res := run(client, fmt.Sprintf("proxy:ports-add %s %s", appName, p))
+
+					if res.err != nil {
+						return res.err
+					}
+				}
+			}
+		}
 	}
 
 	return nil

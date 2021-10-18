@@ -2,6 +2,7 @@ package dokku
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -413,6 +414,127 @@ resource "dokku_app" "test" {
 	})
 }
 
+func TestAppPort(t *testing.T) {
+	appName := fmt.Sprintf("test-ports-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	ports = ["tcp:25:3000"]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppPortsExist("dokku_app.test", "tcp:25:3000"),
+				),
+			},
+		},
+	})
+}
+
+func TestAppAddPort(t *testing.T) {
+	appName := fmt.Sprintf("test-ports-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	ports = ["tcp:25:3000"]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppPortsExist("dokku_app.test", "tcp:25:3000"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	ports = [
+		"tcp:25:3000",
+		"tcp:26:3001"
+	]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppPortsExist("dokku_app.test", "tcp:25:3000", "tcp:26:3001"),
+				),
+			},
+		},
+	})
+}
+
+func TestAppRemovePort(t *testing.T) {
+	appName := fmt.Sprintf("test-ports-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	ports = [
+		"tcp:25:3000",
+		"tcp:26:3001"
+	]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppPortsExist("dokku_app.test", "tcp:25:3000", "tcp:26:3001"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	ports = ["tcp:25:3000"]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppPortsExist("dokku_app.test", "tcp:25:3000"),
+					testAccCheckDokkuAppPortsDontExist("dokku_app.test", "tcp:26:3001"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+				resource "dokku_app" "test" {
+					name = "%s"
+				}
+				`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppPortsDontExist("dokku_app.test", "tcp:25:3000", "tcp:26:3001"),
+				),
+			},
+		},
+	})
+}
+
 //
 func testAccCheckDokkuAppExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
@@ -572,6 +694,69 @@ func testAccCheckDokkuBuildpacks(n string, buildpacks ...string) resource.TestCh
 		for k, _ := range app.Buildpacks {
 			if app.Buildpacks[k] != buildpacks[k] {
 				return fmt.Errorf("Expected buildpack %s, got %s", buildpacks[k], app.Buildpacks[k])
+			}
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuAppPortsExist(n string, ports ...string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		var portsFound []string
+		portLookup := sliceToLookupMap(ports)
+
+		log.Printf("[DEBUG] %v", app.Ports)
+
+		for _, p := range app.Ports {
+			if _, ok := portLookup[p]; ok {
+				portsFound = append(portsFound, p)
+				delete(portLookup, p)
+			}
+		}
+
+		if len(portLookup) > 0 {
+			return fmt.Errorf("%d ports expected, %d ports found. Ports not found: %v\n", len(ports), len(portLookup), portLookup)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuAppPortsDontExist(n string, ports ...string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		portLookup := sliceToLookupMap(ports)
+		for _, p := range app.Ports {
+			if _, ok := portLookup[p]; ok {
+				return fmt.Errorf("Port %s should not exist", p)
 			}
 		}
 
