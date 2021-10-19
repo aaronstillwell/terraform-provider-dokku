@@ -47,7 +47,7 @@ jobs:
           version: << pipeline.parameters.go-version >>
       - go/load-cache
       - terraform/install:
-          terraform_version: "1.0.5"
+          terraform_version: "1.0.9"
       - run:
           name: Pull dokku image
           command: |
