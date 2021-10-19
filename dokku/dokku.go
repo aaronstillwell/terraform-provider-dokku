@@ -30,7 +30,9 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	d.Set("config_vars", app.managedConfigVars(d))
 
 	d.Set("domains", app.Domains)
+
 	d.Set("buildpacks", app.Buildpacks)
+	d.Set("ports", app.managedPorts(d))
 }
 
 // Leave alone config vars that are set outside of terraform. This is one way
@@ -54,6 +56,28 @@ func (app *DokkuApp) managedConfigVars(d *schema.ResourceData) map[string]string
 	}
 
 	return tfConfigVars
+}
+
+// Similar behaviour implemented for ports - there will be some managed outside
+// of terraform that we do not want to remove
+func (app *DokkuApp) managedPorts(d *schema.ResourceData) []string {
+	tfPortsLookup := make(map[string]struct{})
+	tfPorts := []string{}
+
+	if c, ok := d.GetOk("ports"); ok {
+		ports := c.([]string)
+		for _, p := range ports {
+			tfPortsLookup[p] = struct{}{}
+		}
+	}
+
+	for _, appPort := range app.Ports {
+		if _, ok := tfPortsLookup[appPort]; ok {
+			tfPorts = append(tfPorts, appPort)
+		}
+	}
+
+	return tfPorts
 }
 
 // TODO escape quotes
@@ -208,7 +232,6 @@ func readAppBuildpacks(appName string, client *goph.Client) ([]string, error) {
 	}
 
 	buildpackLines := strings.Split(res.stdout, "\n")[1:]
-
 	buildpacks := []string{}
 
 	for _, line := range buildpackLines {
