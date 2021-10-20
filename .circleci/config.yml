@@ -106,7 +106,7 @@ jobs:
             echo $OSS_SIGNING_PASS | gpg -a --detach-sign --passphrase-fd 0 --pinentry-mode loopback /tmp/.circleci-gpg-setup
       - goreleaser/install:
           version: "0.178.0"
-      - run: goreleaser --release-notes=CHANGELOG.md
+      - run: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
 
 workflows:
   build:
