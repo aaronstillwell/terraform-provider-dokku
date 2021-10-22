@@ -31,8 +31,18 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 
 	d.Set("domains", app.Domains)
 
-	d.Set("buildpacks", app.Buildpacks)
-	d.Set("ports", app.managedPorts(d))
+	if len(app.Buildpacks) > 0 {
+		d.Set("buildpacks", app.Buildpacks)
+	} else {
+		d.Set("buildpacks", []string{})
+	}
+
+	managedPorts := app.managedPorts(d)
+	if len(managedPorts) > 0 {
+		d.Set("ports", managedPorts)
+	} else {
+		d.Set("ports", nil)
+	}
 }
 
 // Leave alone config vars that are set outside of terraform. This is one way
@@ -65,8 +75,8 @@ func (app *DokkuApp) managedPorts(d *schema.ResourceData) []string {
 	tfPorts := []string{}
 
 	if c, ok := d.GetOk("ports"); ok {
-		ports := c.([]string)
-		for _, p := range ports {
+		ports := c.(*schema.Set)
+		for _, p := range interfaceSliceToStrSlice(ports.List()) {
 			tfPortsLookup[p] = struct{}{}
 		}
 	}
@@ -272,7 +282,9 @@ func readAppPorts(appName string, client *goph.Client) ([]string, error) {
 			}
 		}
 
-		portMapping = append(portMapping, strings.Join(parts, ":"))
+		if len(parts) == 3 {
+			portMapping = append(portMapping, strings.Join(parts, ":"))
+		}
 	}
 
 	return portMapping, nil
