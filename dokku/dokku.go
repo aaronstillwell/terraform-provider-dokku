@@ -323,6 +323,11 @@ func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxRepor
 
 	nginxOpts := parseKeyValues(stdoutLines)
 
+	// Dokku uses 0.0.0.0 and :: for ipv4/ipv6 bind addresses respectively by
+	// default. However, in the stdout ipv4 is shown as a blank string
+	// as of writing (dokku v0.25.7). We therefore make our own assumptions here
+	// if these properties contain blanks.
+
 	if ipv4Addr, ok := nginxOpts["Nginx bind address ipv4"]; ok {
 		report.BindAddressIpv4 = ipv4Addr
 	} else {
