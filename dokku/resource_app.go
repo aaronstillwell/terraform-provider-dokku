@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/melbahja/goph"
 )
 
@@ -65,6 +66,18 @@ func resourceApp() *schema.Resource {
 				// 	}
 				// 	return []string{}, errs
 				// },
+			},
+			"nginx_bind_address_ipv4": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.IsIPv4Address,
+			},
+			"nginx_bind_address_ipv6": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      "::",
+				ValidateFunc: validation.IsIPv6Address,
 			},
 		},
 		Importer: &schema.ResourceImporter{

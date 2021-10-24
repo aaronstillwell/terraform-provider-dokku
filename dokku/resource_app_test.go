@@ -535,6 +535,98 @@ resource "dokku_app" "test" {
 	})
 }
 
+func TestAppNginxIpv4Address(t *testing.T) {
+	appName := fmt.Sprintf("test-nginxip4-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	nginx_bind_address_ipv4 = "192.168.1.1"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNginxIpv4Addr("dokku_app.test", "192.168.1.1"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNginxIpv4Addr("dokku_app.test", ""),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	nginx_bind_address_ipv4 = "1.1.1.1"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNginxIpv4Addr("dokku_app.test", "1.1.1.1"),
+				),
+			},
+		},
+	})
+}
+
+func TestAppNginxIpv6Address(t *testing.T) {
+	appName := fmt.Sprintf("test-nginxip6-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	nginx_bind_address_ipv6 = "2001:0db8:0000:0000:0000:ff00:0042:8329"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNginxIpv6Addr("dokku_app.test", "2001:0db8:0000:0000:0000:ff00:0042:8329"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNginxIpv6Addr("dokku_app.test", "::"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	nginx_bind_address_ipv6 = "2001:0db8:0000:0000:0000:ff00:0042:9000"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNginxIpv6Addr("dokku_app.test", "2001:0db8:0000:0000:0000:ff00:0042:9000"),
+				),
+			},
+		},
+	})
+}
+
 //
 func testAccCheckDokkuAppExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
@@ -758,6 +850,56 @@ func testAccCheckDokkuAppPortsDontExist(n string, ports ...string) resource.Test
 			if _, ok := portLookup[p]; ok {
 				return fmt.Errorf("Port %s should not exist", p)
 			}
+		}
+
+		return nil
+	}
+}
+
+//
+func testAccCheckDokkuAppNginxIpv4Addr(n string, ip string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		if app.NginxBindAddressIpv4 != ip {
+			return fmt.Errorf("nginx_bind_address_ipv4 was %s, expected %s", app.NginxBindAddressIpv4, ip)
+		}
+
+		return nil
+	}
+}
+
+//
+func testAccCheckDokkuAppNginxIpv6Addr(n string, ip string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		if app.NginxBindAddressIpv6 != ip {
+			return fmt.Errorf("nginx_bind_address_ipv6 was %s, expected %s", app.NginxBindAddressIpv6, ip)
 		}
 
 		return nil

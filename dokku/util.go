@@ -82,3 +82,28 @@ func tmpResourceName(length int) string {
 	}
 	return string(s)
 }
+
+// Parse a map of key/values (both strings) from a list of strings, where the
+// key/values are delimited by a colon, with 1 pair per item.
+// Dokku uses this format a lot in its stdout
+func parseKeyValues(lines []string) map[string]string {
+	keyValues := make(map[string]string)
+
+	for _, kp := range lines {
+		kp = strings.TrimSpace(kp)
+		if len(kp) > 0 {
+			parts := strings.Split(kp, ":")
+			key := strings.TrimSpace(parts[0])
+
+			val := parts[1]
+			if len(parts[1]) > 1 {
+				val = strings.Join(parts[1:], ":")
+			}
+			val = strings.TrimSpace(val)
+
+			keyValues[key] = val
+		}
+	}
+
+	return keyValues
+}

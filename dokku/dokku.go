@@ -18,7 +18,9 @@ type DokkuApp struct {
 	Domains    []string
 	Buildpacks []string
 	// slice of strings denoting schema:hostPort:containerPort
-	Ports []string
+	Ports                []string
+	NginxBindAddressIpv4 string
+	NginxBindAddressIpv6 string
 }
 
 //
@@ -43,6 +45,9 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	} else {
 		d.Set("ports", nil)
 	}
+
+	d.Set("nginx_bind_address_ipv4", app.NginxBindAddressIpv4)
+	d.Set("nginx_bind_address_ipv6", app.NginxBindAddressIpv6)
 }
 
 // Leave alone config vars that are set outside of terraform. This is one way
@@ -113,12 +118,14 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 	}
 
 	return &DokkuApp{
-		Name:       d.Get("name").(string),
-		Locked:     d.Get("locked").(bool),
-		ConfigVars: configVars,
-		Domains:    domains,
-		Buildpacks: buildpacks,
-		Ports:      ports,
+		Name:                 d.Get("name").(string),
+		Locked:               d.Get("locked").(bool),
+		ConfigVars:           configVars,
+		Domains:              domains,
+		Buildpacks:           buildpacks,
+		Ports:                ports,
+		NginxBindAddressIpv4: d.Get("nginx_bind_address_ipv4").(string),
+		NginxBindAddressIpv6: d.Get("nginx_bind_address_ipv6").(string),
 	}
 }
 
@@ -164,6 +171,13 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 		return nil, err
 	}
 	app.Ports = ports
+
+	nginxReport, err := readAppNginxReport(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.NginxBindAddressIpv4 = nginxReport.BindAddressIpv4
+	app.NginxBindAddressIpv6 = nginxReport.BindAddressIpv6
 
 	return app, nil
 }
@@ -290,6 +304,30 @@ func readAppPorts(appName string, client *goph.Client) ([]string, error) {
 	return portMapping, nil
 }
 
+type DokkuAppNginxReport struct {
+	BindAddressIpv4 string
+	BindAddressIpv6 string
+}
+
+//
+func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxReport, error) {
+	res := run(client, fmt.Sprintf("nginx:report %s", appName))
+
+	report := DokkuAppNginxReport{}
+
+	if res.err != nil {
+		return report, res.err
+	}
+
+	stdoutLines := strings.Split(res.stdout, "\n")[1:]
+
+	nginxOpts := parseKeyValues(stdoutLines)
+	report.BindAddressIpv4 = nginxOpts["Nginx bind address ipv4"]
+	report.BindAddressIpv6 = nginxOpts["Nginx bind address ipv6"]
+
+	return report, nil
+}
+
 //
 func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("apps:create %s", app.Name))
@@ -319,6 +357,18 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	}
 
 	err = dokkuAppPortsAdd(app.Name, app.Ports, client)
+
+	if err != nil {
+		return err
+	}
+
+	err = dokkuAppNginxOptSet(app.Name, "bind-address-ipv4", app.NginxBindAddressIpv4, client)
+
+	if err != nil {
+		return err
+	}
+
+	err = dokkuAppNginxOptSet(app.Name, "bind-address-ipv6", app.NginxBindAddressIpv6, client)
 
 	return err
 }
@@ -387,6 +437,11 @@ func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error
 	}
 
 	return nil
+}
+
+func dokkuAppNginxOptSet(appName string, property string, value string, client *goph.Client) error {
+	res := run(client, fmt.Sprintf("nginx:set %s %s %s", appName, property, value))
+	return res.err
 }
 
 //
@@ -508,6 +563,16 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 				}
 			}
 		}
+	}
+
+	if d.HasChange("nginx_bind_address_ipv4") {
+		_, newBindAddr := d.GetChange("nginx_bind_address_ipv4")
+		dokkuAppNginxOptSet(appName, "bind-address-ipv4", newBindAddr.(string), client)
+	}
+
+	if d.HasChange("nginx_bind_address_ipv6") {
+		_, newBindAddr := d.GetChange("nginx_bind_address_ipv6")
+		dokkuAppNginxOptSet(appName, "bind-address-ipv6", newBindAddr.(string), client)
 	}
 
 	return nil
