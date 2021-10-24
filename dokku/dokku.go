@@ -33,10 +33,8 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 
 	d.Set("domains", app.Domains)
 
-	if len(app.Buildpacks) > 0 {
+	if d.HasChange("buildpacks") || len(app.Buildpacks) > 0 {
 		d.Set("buildpacks", app.Buildpacks)
-	} else {
-		d.Set("buildpacks", []string{})
 	}
 
 	managedPorts := app.managedPorts(d)
