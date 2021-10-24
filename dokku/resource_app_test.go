@@ -562,7 +562,7 @@ resource "dokku_app" "test" {
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuAppNginxIpv4Addr("dokku_app.test", ""),
+					testAccCheckDokkuAppNginxIpv4Addr("dokku_app.test", "0.0.0.0"),
 				),
 			},
 			{

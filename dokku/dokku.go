@@ -322,8 +322,18 @@ func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxRepor
 	stdoutLines := strings.Split(res.stdout, "\n")[1:]
 
 	nginxOpts := parseKeyValues(stdoutLines)
-	report.BindAddressIpv4 = nginxOpts["Nginx bind address ipv4"]
-	report.BindAddressIpv6 = nginxOpts["Nginx bind address ipv6"]
+
+	if ipv4Addr, ok := nginxOpts["Nginx bind address ipv4"]; ok {
+		report.BindAddressIpv4 = ipv4Addr
+	} else {
+		report.BindAddressIpv4 = "0.0.0.0"
+	}
+
+	if ipv6Addr, ok := nginxOpts["Nginx bind address ipv6"]; ok {
+		report.BindAddressIpv6 = ipv6Addr
+	} else {
+		report.BindAddressIpv6 = "::"
+	}
 
 	return report, nil
 }

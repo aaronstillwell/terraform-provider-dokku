@@ -70,7 +70,7 @@ func resourceApp() *schema.Resource {
 			"nginx_bind_address_ipv4": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				Computed:     true,
+				Default:      "0.0.0.0",
 				ValidateFunc: validation.IsIPv4Address,
 			},
 			"nginx_bind_address_ipv6": {
