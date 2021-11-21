@@ -100,7 +100,7 @@ func (app *DokkuApp) configVarsStr() string {
 		if len(str) > 0 {
 			str = str + " "
 		}
-		str = str + k + "=" + v
+		str = str + k + "=\"" + v + "\""
 	}
 	return str
 }
@@ -393,7 +393,12 @@ func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
 		return nil
 	}
 
-	res := run(client, fmt.Sprintf("config:set %s %s", app.Name, configVarStr))
+	secrets := make([]string, 0, len(app.ConfigVars))
+	for _, v := range app.ConfigVars {
+		secrets = append(secrets, v)
+	}
+
+	res := run(client, fmt.Sprintf("config:set %s %s", app.Name, configVarStr), secrets...)
 	return res.err
 }
 
@@ -483,16 +488,19 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 
 		// TODO shouldn't need to duplicate below we already have config set function
 		// This is basically an upsert, and will update values even if they haven't changed
-		keysToUpsert := make([]string, len(newConfigVar))
-		upsertParts := make([]string, len(newConfigVar))
+
+		keysToUpsert := make([]string, 0)
+		upsertParts := make([]string, 0)
+		secrets := make([]string, 0)
 		for newK, newV := range newConfigVar {
 			keysToUpsert = append(keysToUpsert, newK)
-			upsertParts = append(upsertParts, fmt.Sprintf("%s=%s", newK, newV))
+			upsertParts = append(upsertParts, fmt.Sprintf("%s=\"%s\"", newK, newV))
+			secrets = append(secrets, newV)
 		}
 
 		if len(upsertParts) > 0 {
 			log.Printf("[DEBUG] Setting keys %v\n", keysToUpsert)
-			res := run(client, fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")))
+			res := run(client, fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")), secrets...)
 
 			if res.err != nil {
 				return res.err

@@ -92,6 +92,7 @@ resource "dokku_app" "test" {
 	name = "%s"
 	config_vars = {
 		FOO2 = "BAR:FOO"
+		FOO3 = "FOO BAR"
 	}
 	domains = ["test.dokku.me2"]
 }				
@@ -99,6 +100,7 @@ resource "dokku_app" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
 					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO3", "FOO BAR"),
 					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me2"),
 				),
 			},
@@ -178,6 +180,19 @@ resource "dokku_app" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
 					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO2", "BAR:FOO"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	config_vars = {
+		FOO3 = "FOO BAR"
+	}
+}`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO3", "FOO BAR"),
 				),
 			},
 		},

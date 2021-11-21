@@ -6,6 +6,7 @@ import (
 	"log"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/melbahja/goph"
 )
@@ -18,22 +19,36 @@ type SshOutput struct {
 	err    error
 }
 
+// Run a command using the provided SSH client
 //
-func run(client *goph.Client, cmd string) SshOutput {
-	log.Printf("[DEBUG] SSH: %s", cmd)
-	stdout, err := client.Run(cmd)
+// strings to be removed from logging can also be provided via `sensitiveStrings`
+func run(client *goph.Client, cmd string, sensitiveStrings ...string) SshOutput {
+
+	cmdSafe := cmd
+	for _, toReplace := range sensitiveStrings {
+		cmdSafe = strings.Replace(cmdSafe, toReplace, "*******", -1)
+	}
+
+	log.Printf("[DEBUG] SSH: %s", cmdSafe)
+
+	stdoutRaw, err := client.Run(cmd)
+
+	stdout := string(stdoutRaw)
+	for _, toReplace := range sensitiveStrings {
+		stdout = strings.Replace(stdout, toReplace, "*******", -1)
+	}
 
 	if err != nil {
 		status := parseStatusCode(err.Error())
-		log.Printf("[DEBUG] SSH: error status %d", status)
+		log.Printf("[DEBUG] SSH: error status %d from %s", status, cmdSafe)
 		return SshOutput{
-			stdout: string(stdout),
+			stdout: stdout,
 			status: status,
-			err:    errors.New(fmt.Sprintf("Error [%d]: %s", status, string(stdout))),
+			err:    errors.New(fmt.Sprintf("Error [%d]: %s", status, stdout)),
 		}
 	} else {
 		return SshOutput{
-			stdout: string(stdout),
+			stdout: stdout,
 			status: 0,
 			err:    nil,
 		}
