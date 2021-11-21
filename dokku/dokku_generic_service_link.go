@@ -55,7 +55,7 @@ func serviceLinkRead(d *schema.ResourceData, serviceName string, client *goph.Cl
 
 	if res.err != nil {
 		// TODO use stdout as extra verification?
-		if res.status == 1 || res.status == 20 {
+		if res.status > 0 {
 			d.SetId("")
 			return nil
 		}

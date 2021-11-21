@@ -90,7 +90,7 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 	res := run(client, service.Cmd("info", service.Name))
 
 	if res.err != nil {
-		if res.status == 1 {
+		if res.status > 0 {
 			// Service does not exist
 			service.Id = ""
 			log.Printf("[DEBUG] %s service %s does not exist\n", service.CmdName, service.Name)

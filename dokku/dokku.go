@@ -134,7 +134,7 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	app := &DokkuApp{Id: appName, Name: appName, Locked: false}
 
 	if res.err != nil {
-		if res.status == 20 {
+		if res.status > 0 {
 			// App does not exist
 			app.Id = ""
 			log.Printf("[DEBUG] app %s does not exist\n", appName)
@@ -273,7 +273,7 @@ func readAppPorts(appName string, client *goph.Client) ([]string, error) {
 	portsLines := strings.Split(res.stdout, "\n")
 
 	// returns status code 1 if no ports set
-	if len(portsLines) <= 2 || res.status == 1 {
+	if len(portsLines) <= 2 || res.status > 0 {
 		return []string{}, nil
 	}
 	portsLines = portsLines[2:]
