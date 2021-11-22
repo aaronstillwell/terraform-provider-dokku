@@ -61,7 +61,6 @@ jobs:
           name: Setup dokku plugins
           command: |
             sudo mkdir -p /var/lib/dokku
-            sudo cp .circleci/plugin-list /var/lib/dokku/
       - run:
           name: Start dokku container
           command: |
@@ -84,6 +83,11 @@ jobs:
       - wait-for/sh-command:
           timeout: 300
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
+      - run:
+          name: Install dokku plugins
+          command:
+            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git postgres
+            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git redis
       - run:
           name: Run acceptance tests
           command: make testacc
