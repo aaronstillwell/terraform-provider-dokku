@@ -35,3 +35,6 @@ test:
 
 testacc: 
 	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m   
+
+testacc-ci:
+	TF_ACC=1 gotestsum --junitfile ${TEST_RESULTS}/gotestsum-report.xml $(TEST) -v $(TESTARGS) -timeout 120m  
