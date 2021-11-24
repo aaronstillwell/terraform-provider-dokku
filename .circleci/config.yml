@@ -3,7 +3,6 @@ version: 2.1
 orbs:
   goreleaser: hubci/goreleaser@1.0.0
   go: circleci/go@1.7.0
-  go-tools: gotest/tools@0.0.14
   terraform: circleci/terraform@2.1.0
   wait-for: cobli/wait-for@0.0.2
 
@@ -50,7 +49,11 @@ jobs:
       - go/load-cache
       - terraform/install:
           terraform_version: "1.0.9"
-      - go-tools/install-gotestsum
+      - run:
+          name: Install gotestsum
+          command: |
+            curl -sSL https://github.com/gotestyourself/gotestsum/releases/download/v1.7.0/gotestsum_1.7.0_linux_amd64.tar.gz | \
+            sudo tar -zx -C /usr/bin gotestsum
       - run:
           name: Pull dokku image
           command: |
