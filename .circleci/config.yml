@@ -55,6 +55,9 @@ jobs:
             curl -sSL https://github.com/gotestyourself/gotestsum/releases/download/v1.7.0/gotestsum_1.7.0_linux_amd64.tar.gz | \
             sudo tar -zx -C /usr/bin gotestsum
       - run:
+          name: Create test results dir
+          command: mkdir -p $TEST_RESULTS 
+      - run:
           name: Pull dokku image
           command: |
             sudo docker pull dokku/dokku:<< parameters.dokku-version >>
