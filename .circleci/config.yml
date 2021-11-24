@@ -66,12 +66,6 @@ jobs:
           command: |
             sudo docker pull circleci/postgres:9.6.16-alpine-ram
             sudo docker pull circleci/redis:6.2.5
-        # Used to copy plugin file into this dir here, might need it
-        # again in the future
-      - run:
-          name: Setup /var/lib/dokku
-          command: |
-            sudo mkdir -p /var/lib/dokku
       - run:
           name: Start dokku container
           command: |
@@ -136,7 +130,7 @@ workflows:
       - acceptance-tests:
           matrix:
             parameters:
-              dokku-version: ["0.24.10", "0.25.7", "0.26.1"]
+              dokku-version: ["0.24.10", "0.25.7", "0.26.5"]
           requires:
             - build
 
