@@ -1,6 +1,7 @@
 version: 2.1
 
 orbs:
+  docker: circleci/docker@2.0.1
   goreleaser: hubci/goreleaser@1.0.0
   go: circleci/go@1.7.0
   terraform: circleci/terraform@2.1.0
@@ -49,6 +50,8 @@ jobs:
       - go/load-cache
       - terraform/install:
           terraform_version: "1.0.9"
+      # Was having problems with docker <20 and dokku >= 0.26.2
+      - docker/install-docker
       - run:
           name: Install gotestsum
           command: |
