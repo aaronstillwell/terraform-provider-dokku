@@ -191,8 +191,6 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 				return err
 			}
 		}
-
-		return nil
 	}
 
 	service.Id = serviceName

@@ -110,7 +110,7 @@ resource "dokku_app" "test" {
 
 func TestRenameApp(t *testing.T) {
 	appName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
-	newName := fmt.Sprintf("test-app-%s", acctest.RandString(10))
+	newName := fmt.Sprintf("test-app-new-%s", acctest.RandString(10))
 
 	resource.Test(t, resource.TestCase{
 		Providers:    testAccProviders,
@@ -124,7 +124,7 @@ resource "dokku_app" "test" {
 		FOO2 = "BAR:FOO"
 	}
 	domains = ["test.dokku.me2"]
-}				
+}
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
@@ -140,7 +140,7 @@ resource "dokku_app" "test" {
 		FOO2 = "BAR:FOO"
 	}
 	domains = ["test.dokku.me2"]
-}				
+}
 `, newName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),

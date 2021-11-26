@@ -53,6 +53,42 @@ resource "dokku_postgres_service" "test" {
 	})
 }
 
+func TestAccPostgresUpdate(t *testing.T) {
+	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
+	newServiceName := fmt.Sprintf("pg-renamed-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testPgServiceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+	image = "circleci/postgres"
+	image_version = "9.6.16-alpine-ram"
+}
+`, newServiceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgServiceName("dokku_postgres_service.test", newServiceName),
+					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "circleci/postgres", "9.6.16-alpine-ram"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckPgServiceExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -76,6 +112,39 @@ func testAccCheckPgServiceExists(n string) resource.TestCheckFunc {
 
 		if service.Id == "" {
 			return fmt.Errorf("Service %s was not created", rs.Primary.ID)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckPgServiceName(n string, name string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("Service ID not present")
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		service := NewDokkuPostgresService(rs.Primary.ID)
+		err := dokkuPgRead(service, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error reading pg resource %s", rs.Primary.ID)
+		}
+
+		if service.Id == "" {
+			return fmt.Errorf("Service %s was not created", rs.Primary.ID)
+		}
+
+		if service.Name != name {
+			return fmt.Errorf("Service name was %s, expected %s", service.Name, name)
 		}
 
 		return nil
