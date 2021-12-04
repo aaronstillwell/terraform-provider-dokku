@@ -98,7 +98,7 @@ jobs:
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
       - run:
           name: Install dokku plugins
-          command:
+          command: |
             sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git postgres
             sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git redis
             sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git mysql
