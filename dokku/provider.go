@@ -51,6 +51,7 @@ func Provider() *schema.Provider {
 			"dokku_redis_service":         resourceRedisService(),
 			"dokku_redis_service_link":    resourceRedisServiceLink(),
 			"dokku_mysql_service":         resourceMysqlService(),
+			"dokku_mysql_service_link":    resourceMysqlServiceLink(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"dokku_apps": dataSourceApps(),

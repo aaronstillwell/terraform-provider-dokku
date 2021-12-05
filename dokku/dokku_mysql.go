@@ -31,18 +31,18 @@ func NewMysqlServiceFromResourceData(d *schema.ResourceData) *DokkuMysqlService 
 	}
 }
 
-func dokkuMysqlRead(ch *DokkuMysqlService, client *goph.Client) error {
-	return dokkuServiceRead(&ch.DokkuGenericService, client)
+func dokkuMysqlRead(mysql *DokkuMysqlService, client *goph.Client) error {
+	return dokkuServiceRead(&mysql.DokkuGenericService, client)
 }
 
-func dokkuMysqlCreate(ch *DokkuMysqlService, client *goph.Client) error {
-	return dokkuServiceCreate(&ch.DokkuGenericService, client)
+func dokkuMysqlCreate(mysql *DokkuMysqlService, client *goph.Client) error {
+	return dokkuServiceCreate(&mysql.DokkuGenericService, client)
 }
 
-func dokkuMysqlUpdate(ch *DokkuMysqlService, d *schema.ResourceData, client *goph.Client) error {
-	return dokkuServiceUpdate(&ch.DokkuGenericService, d, client)
+func dokkuMysqlUpdate(mysql *DokkuMysqlService, d *schema.ResourceData, client *goph.Client) error {
+	return dokkuServiceUpdate(&mysql.DokkuGenericService, d, client)
 }
 
-func dokkuMysqlDestroy(ch *DokkuMysqlService, client *goph.Client) error {
-	return dokkuServiceDestroy(ch.CmdName, ch.Name, client)
+func dokkuMysqlDestroy(mysql *DokkuMysqlService, client *goph.Client) error {
+	return dokkuServiceDestroy(mysql.CmdName, mysql.Name, client)
 }
