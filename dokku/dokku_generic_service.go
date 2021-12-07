@@ -87,37 +87,54 @@ func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...strin
 
 //
 func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
-	res := run(client, service.Cmd("info", service.Name))
+	serviceInfo, err := getServiceInfo(service.CmdName, service.Name, client)
+
+	if err != nil {
+		return err
+	}
+
+	if status, ok := serviceInfo["status"]; ok {
+		service.Stopped = status == "exited"
+	}
+
+	if version, ok := serviceInfo["version"]; ok {
+		service.Image, service.ImageVersion = dockerImageAndVersion(version)
+	}
+
+	return nil
+}
+
+// When implementing clickhouse for v0.4.0 generic service didn't quite fit the
+// bill, as we cannot yet support image etc.
+//
+// Probably the way we want to go in the future is just using a lower level API
+// for extracting info from dokku. Adding this now allows us to re-use this
+// in `dokkuServiceRead` as well as in the clickhouse service resource.
+func getServiceInfo(service string, name string, client *goph.Client) (map[string]string, error) {
+	res := run(client, fmt.Sprintf("%s:info %s", service, name))
 
 	if res.err != nil {
 		if res.status > 0 {
-			// Service does not exist
-			service.Id = ""
-			log.Printf("[DEBUG] %s service %s does not exist\n", service.CmdName, service.Name)
+			log.Printf("[DEBUG] %s service %s does not exist\n", service, name)
 			// return nil, err
-			return nil
+			return nil, nil
 		} else {
-			return res.err
+			return nil, res.err
 		}
 	}
-	service.Id = service.Name
 
 	infoLines := strings.Split(res.stdout, "\n")[1:]
+
+	data := make(map[string]string)
 
 	for _, ln := range infoLines {
 		lnPart := strings.Split(ln, ":")
 		valPart := strings.TrimSpace(strings.Join(lnPart[1:], ":"))
-		switch strings.TrimSpace(lnPart[0]) {
-		case "Status":
-			if valPart == "exited" {
-				service.Stopped = true
-			}
-		case "Version":
-			service.Image, service.ImageVersion = dockerImageAndVersion(valPart)
-		}
+
+		data[strings.ToLower(lnPart[0])] = valPart
 	}
 
-	return nil
+	return data, nil
 }
 
 //
