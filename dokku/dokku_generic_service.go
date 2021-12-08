@@ -131,7 +131,7 @@ func getServiceInfo(service string, name string, client *goph.Client) (map[strin
 		lnPart := strings.Split(ln, ":")
 		valPart := strings.TrimSpace(strings.Join(lnPart[1:], ":"))
 
-		data[strings.ToLower(lnPart[0])] = valPart
+		data[strings.TrimSpace(strings.ToLower(lnPart[0]))] = valPart
 	}
 
 	return data, nil
