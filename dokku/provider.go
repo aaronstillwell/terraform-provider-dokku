@@ -55,9 +55,7 @@ func Provider() *schema.Provider {
 			"dokku_clickhouse_service":      resourceClickhouseService(),
 			"dokku_clickhouse_service_link": resourceClickhouseServiceLink(),
 		},
-		DataSourcesMap: map[string]*schema.Resource{
-			"dokku_apps": dataSourceApps(),
-		},
+		DataSourcesMap:       map[string]*schema.Resource{},
 		ConfigureContextFunc: providerConfigure,
 	}
 }
