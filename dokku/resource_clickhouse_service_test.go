@@ -67,7 +67,10 @@ resource "dokku_clickhouse_service" "test" {
 	stopped = true
 }
 `, serviceName),
-				Check: testClickhouseServiceExists("dokku_clickhouse_service.test"),
+				Check: resource.ComposeTestCheckFunc(
+					testClickhouseServiceExists("dokku_clickhouse_service.test"),
+					testClickhouseServiceIsStopped("dokku_clickhouse_service.test", true),
+				),
 			},
 		},
 	})
@@ -127,7 +130,7 @@ func testClickhouseServiceIsStopped(n string, isStopped bool) resource.TestCheck
 
 		serviceIsStopped := service["status"] == "exited"
 		if serviceIsStopped != isStopped {
-			return fmt.Errorf("Service %s returned stopped = %v, expected %v", rs.Primary.ID, serviceIsStopped, isStopped)
+			return fmt.Errorf("Service %s returned stopped = %v, expected %v - status was %s", rs.Primary.ID, serviceIsStopped, isStopped, service["status"])
 		}
 
 		return nil

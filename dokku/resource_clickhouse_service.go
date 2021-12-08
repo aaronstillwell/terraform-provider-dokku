@@ -51,6 +51,14 @@ func resourceChCreate(ctx context.Context, d *schema.ResourceData, m interface{}
 
 	d.SetId(d.Get("name").(string))
 
+	if d.Get("stopped").(bool) {
+		res = run(sshClient, fmt.Sprintf("clickhouse:stop %s", d.Id()))
+
+		if res.err != nil {
+			return diag.FromErr(res.err)
+		}
+	}
+
 	return diags
 }
 
