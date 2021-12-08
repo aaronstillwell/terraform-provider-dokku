@@ -1,4 +1,0 @@
-kind: Changed
-body: No longer rely on specific status codes, previously used to detect resource
-  presence
-time: 2021-11-21T21:55:48.168719Z
