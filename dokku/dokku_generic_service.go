@@ -93,6 +93,10 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 		return err
 	}
 
+	if serviceInfo != nil {
+		service.Id = service.Name
+	}
+
 	if status, ok := serviceInfo["status"]; ok {
 		service.Stopped = status == "exited"
 	}
@@ -133,6 +137,8 @@ func getServiceInfo(service string, name string, client *goph.Client) (map[strin
 
 		data[strings.TrimSpace(strings.ToLower(lnPart[0]))] = valPart
 	}
+
+	log.Printf("Returning info for %s service %s :: %v", service, name, data)
 
 	return data, nil
 }
