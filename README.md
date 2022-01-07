@@ -16,7 +16,7 @@ terraform {
 }
 ```
 
-2. Initialise the provider with your host settings. 
+2. Initialise the provider with your host settings. The SSH key should be that of a [dokku user](https://dokku.com/docs/deployment/user-management/). Dokku users have dokku set as a forced command - the provider will not attempt to explicitly specify the dokku binary over SSH.
 ```
 provider "dokku" {
   ssh_host = "dokku.me"
