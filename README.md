@@ -83,6 +83,8 @@ terraform init && terraform apply
 
 ## Examples
 
+See also [examples/main.tf](./examples/main.tf) for a commented example.
+
 ```
 terraform {
   required_providers {
