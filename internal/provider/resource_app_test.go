@@ -1,4 +1,4 @@
-package dokku
+package provider
 
 import (
 	"fmt"

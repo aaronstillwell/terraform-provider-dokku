@@ -1,4 +1,4 @@
-package dokku
+package provider
 
 //
 // Reusable logic for different services (pg/redis etc)

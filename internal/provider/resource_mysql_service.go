@@ -1,4 +1,4 @@
-package dokku
+package provider
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"github.com/melbahja/goph"
 )
 
-func resourceRedisService() *schema.Resource {
+func resourceMysqlService() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceRedisCreate,
-		ReadContext:   resourceRedisRead,
-		UpdateContext: resourceRedisUpdate,
-		DeleteContext: resourceRedisDestroy,
+		CreateContext: resourceMysqlCreate,
+		ReadContext:   resourceMysqlRead,
+		UpdateContext: resourceMysqlUpdate,
+		DeleteContext: resourceMysqlDelete,
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:     schema.TypeString,
@@ -41,26 +41,24 @@ func resourceRedisService() *schema.Resource {
 	}
 }
 
-//
-func resourceRedisCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceMysqlCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
 	var diags diag.Diagnostics
 
-	redis := NewDokkuRedisServiceFromResourceData(d)
-	err := dokkuRedisCreate(redis, sshClient)
+	mysql := NewMysqlServiceFromResourceData(d)
+	err := dokkuMysqlCreate(mysql, sshClient)
 
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	redis.setOnResourceData(d)
+	mysql.setOnResourceData(d)
 
 	return diags
 }
 
-//
-func resourceRedisRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceMysqlRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
 	var diags diag.Diagnostics
@@ -72,41 +70,41 @@ func resourceRedisRead(ctx context.Context, d *schema.ResourceData, m interface{
 		serviceName = d.Id()
 	}
 
-	redis := NewDokkuRedisService(serviceName)
-	err := dokkuRedisRead(redis, sshClient)
+	mysql := NewMysqlService(serviceName)
+	err := dokkuMysqlRead(mysql, sshClient)
 
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	redis.setOnResourceData(d)
+	mysql.setOnResourceData(d)
 
 	return diags
 }
 
-//
-func resourceRedisUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceMysqlUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
 	var diags diag.Diagnostics
 
-	redis := NewDokkuRedisServiceFromResourceData(d)
-	err := dokkuRedisUpdate(redis, d, sshClient)
+	mysql := NewMysqlServiceFromResourceData(d)
+	err := dokkuMysqlUpdate(mysql, d, sshClient)
 
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
+	mysql.setOnResourceData(d)
+
 	return diags
 }
 
-//
-func resourceRedisDestroy(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceMysqlDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
 	var diags diag.Diagnostics
 
-	err := dokkuRedisDestroy(NewDokkuRedisService(d.Id()), sshClient)
+	err := dokkuMysqlDestroy(NewMysqlService(d.Id()), sshClient)
 
 	if err != nil {
 		return diag.FromErr(err)

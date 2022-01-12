@@ -1,4 +1,4 @@
-package dokku
+package provider
 
 import (
 	"context"
@@ -8,11 +8,11 @@ import (
 	"github.com/melbahja/goph"
 )
 
-func resourceClickhouseServiceLink() *schema.Resource {
+func resourcePostgresServiceLink() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceClickhouseServiceLinkCreate,
-		ReadContext:   resourceClickhouseServiceLinkRead,
-		DeleteContext: resourceClickhouseServiceLinkDelete,
+		CreateContext: resourcePostgresServiceLinkCreate,
+		ReadContext:   resourcePostgresServiceLinkRead,
+		DeleteContext: resourcePostgresServiceLinkDelete,
 		Schema: map[string]*schema.Schema{
 			"service": {
 				Type:     schema.TypeString,
@@ -38,11 +38,11 @@ func resourceClickhouseServiceLink() *schema.Resource {
 	}
 }
 
-const clickhouseServiceCmd = "clickhouse"
+const pgServiceCmd = "postgres"
 
 //
-func resourceClickhouseServiceLinkCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	err := serviceLinkCreate(d, clickhouseServiceCmd, m.(*goph.Client))
+func resourcePostgresServiceLinkCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	err := serviceLinkCreate(d, pgServiceCmd, m.(*goph.Client))
 
 	var diags diag.Diagnostics
 
@@ -54,8 +54,8 @@ func resourceClickhouseServiceLinkCreate(ctx context.Context, d *schema.Resource
 }
 
 //
-func resourceClickhouseServiceLinkRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	err := serviceLinkRead(d, clickhouseServiceCmd, m.(*goph.Client))
+func resourcePostgresServiceLinkRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	err := serviceLinkRead(d, pgServiceCmd, m.(*goph.Client))
 
 	var diags diag.Diagnostics
 
@@ -67,8 +67,8 @@ func resourceClickhouseServiceLinkRead(ctx context.Context, d *schema.ResourceDa
 }
 
 //
-func resourceClickhouseServiceLinkDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	err := serviceLinkDelete(d, clickhouseServiceCmd, m.(*goph.Client))
+func resourcePostgresServiceLinkDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	err := serviceLinkDelete(d, pgServiceCmd, m.(*goph.Client))
 
 	var diags diag.Diagnostics
 
