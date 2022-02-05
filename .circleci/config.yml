@@ -10,8 +10,8 @@ orbs:
 parameters:
   go-version:
     type: enum
-    enum: ["1.16"]
-    default: "1.16"
+    enum: ["1.17"]
+    default: "1.17"
 
 executors:
   default:
