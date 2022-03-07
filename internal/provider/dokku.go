@@ -93,7 +93,6 @@ func (app *DokkuApp) managedPorts(d *schema.ResourceData) []string {
 	return tfPorts
 }
 
-// TODO escape quotes
 func (app *DokkuApp) configVarsStr() string {
 	str := ""
 	for k, v := range app.ConfigVars {
