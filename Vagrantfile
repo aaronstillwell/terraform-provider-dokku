@@ -19,10 +19,6 @@ Vagrant.configure("2") do |config|
   # `vagrant box outdated`. This is not recommended.
   # config.vm.box_check_update = false
 
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  # NOTE: This will enable public access to the opened port
   config.vm.network "forwarded_port", guest: 22, host: 8022
   config.vm.network "forwarded_port", guest: 80, host: 8001
 
@@ -44,7 +40,7 @@ Vagrant.configure("2") do |config|
   # the path on the host to the actual folder. The second argument is
   # the path on the guest to mount the folder. And the optional third
   # argument is a set of non-required options.
-  # config.vm.synced_folder "../data", "/vagrant_data"
+  config.vm.synced_folder "./", "/vagrant"
 
   # Provider-specific configuration so you can fine-tune various
   # backing providers for Vagrant. These expose provider-specific options.
@@ -61,11 +57,63 @@ Vagrant.configure("2") do |config|
   # View the documentation for the provider you are using for more
   # information on available options.
 
-  # Enable provisioning with a shell script. Additional provisioners such as
-  # Ansible, Chef, Docker, Puppet and Salt are also available. Please see the
-  # documentation for more information about their specific syntax and use.
-  # config.vm.provision "shell", inline: <<-SHELL
-  #   apt-get update
-  #   apt-get install -y apache2
-  # SHELL
+  # Here the VM is configured for developing the provider. This is similar to
+  # how the CI pipeline is configured (see .circleci/config.yml). This vagrant
+  # config isn't guaranteed to be as well maintained.
+  config.vm.provision "shell", inline: <<-SHELL
+    # Install dependencies
+    apt update
+    apt upgrade -y
+    apt install -y gcc docker.io
+
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+    sudo apt-add-repository "deb [arch=$(dpkg --print-architecture)] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+    apt install -y terraform
+
+    curl -OL https://golang.org/dl/go1.17.8.linux-amd64.tar.gz
+    tar -C /usr/local -xvf go1.17.8.linux-amd64.tar.gz
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> /home/vagrant/.profile
+    chown -R $(whoami): /usr/local/go
+    
+    curl -sSL https://github.com/gotestyourself/gotestsum/releases/download/v1.7.0/gotestsum_1.7.0_linux_amd64.tar.gz | \
+    sudo tar -zx -C /usr/bin gotestsum
+
+    # Pull some service images used by the acceptance test suite
+    docker pull circleci/postgres:9.6.16-alpine-ram
+    docker pull circleci/redis:6.2.5
+    docker pull mysql:5.7.36
+
+    # Run the dokku container
+    docker container run \
+      --env DOKKU_HOSTNAME=dokku.me \
+      --name dokku \
+      --publish 3022:22 \
+      --publish 8080:80 \
+      --publish 8443:443 \
+      --volume /var/lib/dokku:/mnt/dokku \
+      --volume /var/lib/dokku/services/:/var/lib/dokku/services/ \
+      --volume /var/run/docker.sock:/var/run/docker.sock \
+      -d \
+      dokku/dokku:0.26.8
+
+    # Configure an SSH key with which to authenticate with dokku
+    ssh-keygen -t rsa -N "" -f dokku-ssh
+    chown vagrant:vagrant dokku-ssh
+    chown vagrant:vagrant dokku-ssh.pub
+    docker cp dokku-ssh.pub dokku:/tmp/dokku-ssh.pub
+    docker exec dokku dokku ssh-keys:add dokku dokku-ssh.pub
+
+    # Install dokku plugins
+    docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git postgres
+    docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git redis
+    docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git mysql
+    docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-clickhouse.git clickhouse
+
+    # Set dokku env vars for credentials to SSH into the dokku container
+    # This allows us to e.g just run `make testacc` and it should just work
+    echo 'export DOKKU_SSH_HOST=127.0.0.1' >> /home/vagrant/.profile
+    echo 'export DOKKU_SSH_PORT=3022' >> /home/vagrant/.profile
+    echo 'export DOKKU_SSH_USER=dokku' >> /home/vagrant/.profile
+    echo 'export DOKKU_SSH_CERT=/home/vagrant/dokku-ssh' >> /home/vagrant/.profile
+  SHELL
 end
