@@ -132,6 +132,13 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	res := run(client, "version")
 
+	// Check for 127 status code... suggests that we're not authenticating
+	// with a dokku user (see https://github.com/aaronstillwell/terraform-provider-dokku/issues/1)
+	if res.status == 127 {
+		log.Printf("[ERROR] must use a dokku user for authentication, see the docs")
+		return nil, diag.Errorf("[ERROR] must use a dokku user for authentication, see the docs")
+	}
+
 	re := regexp.MustCompile("[0-9]+\\.[0-9]+\\.[0-9]+")
 	found := re.FindString(res.stdout)
 
