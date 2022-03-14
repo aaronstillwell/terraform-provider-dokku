@@ -49,37 +49,31 @@ resource "dokku_app" "rails-app" {
 }
 ```
 
-## Developing
+## Developing the provider
 
-The easiest way to develop this provider further is to set up a [vagrant](https://www.vagrantup.com/) box locally with Dokku installed. 
+The easiest way to develop this provider further is to set up a [vagrant](https://www.vagrantup.com/) box with the provided vagrantfile.
 
-1. `vagrant up`
-2. TODO SSH key config
-3. Install Dokku using the install instructions on the Dokku website
-4. Run `./build.sh` in `examples`
-5. You can then use the terraform files in `examples` and run them against the vagrant box with `terraform apply`
+1. Run `vagrant up`. This will create an ubuntu VM with the prerequisites needed to develop the provider.
+1. SSH into the VM with `vagrant ssh`
+1. Navigate to where the source is mounted in the VM `cd /vagrant`
 
-## Building (default tf provider instructions)
+From here you can build & test the provider. This VM has dokku running in a docker container, which can be SSH'd into from the VM like any other dokku install.
 
-Run the following command to build the provider
+Please raise an issue if you have any difficulties developing.
 
-```shell
-go build -o terraform-provider-dokku
-```
+### Run acceptance tests locally
 
-## Test sample configuration
+You can run the full acceptance test suite locally with `make testacc`, but note these take some time to run (~10 min).
 
-First, build and install the provider.
+It may be preferrable to run _only_ the test you're working on, with e.g `TF_ACC=1 go test terraform-provider-dokku/internal/provider -v -run TestSetAppConfigVars`
 
-```shell
-make install
-```
+### Manual testing with a terraform config
 
-Then, run the following command to initialize the workspace and apply the sample configuration.
+The `examples` directory can be used for ad-hoc testing configs manually. 
 
-```shell
-terraform init && terraform apply
-```
+1. Navigate to the examples dir while over SSH into the vagrant vm `cd /vagrant/examples/`
+1. Build the provider for use locally with `./build.sh`
+1. You can then use the terraform files in `examples` and run them against the local dokku instance with `terraform apply`.
 
 ## Examples
 
