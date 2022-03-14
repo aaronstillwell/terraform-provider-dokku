@@ -195,19 +195,6 @@ resource "dokku_app" "test" {
 					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO3", "FOO BAR"),
 				),
 			},
-			{
-				Config: fmt.Sprintf(`
-resource "dokku_app" "test" {
-	name = "%s"
-	config_vars = {
-		FOO4 = "FOO\"\\\"BAR"
-	}
-}`, appName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO4", "FOO\\\"\\\"BAR"),
-				),
-			},
 		},
 	})
 }
