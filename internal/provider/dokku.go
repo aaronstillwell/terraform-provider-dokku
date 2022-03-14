@@ -100,7 +100,8 @@ func (app *DokkuApp) configVarsStr() string {
 			str = str + " "
 		}
 		// https://go.dev/play/p/A3IMCJd_cYz
-		str = str + k + "=\"" + strings.ReplaceAll(v, "\"", "\\\"") + "\""
+		v2 := strings.ReplaceAll(v, "\\\"", "\"")
+		str = str + k + "=\"" + strings.ReplaceAll(v2, "\"", "\\\"") + "\""
 	}
 	return str
 }
