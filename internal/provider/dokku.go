@@ -102,6 +102,7 @@ func (app *DokkuApp) configVarsStr() string {
 		// https://go.dev/play/p/A3IMCJd_cYz
 		v2 := strings.ReplaceAll(v, "\\\"", "\"")
 		str = str + k + "=\"" + strings.ReplaceAll(v2, "\"", "\\\"") + "\""
+
 	}
 	return str
 }
@@ -495,12 +496,18 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		secrets := make([]string, 0)
 		for newK, newV := range newConfigVar {
 			keysToUpsert = append(keysToUpsert, newK)
+			newV = strings.ReplaceAll(newV, "\\\"", "\"")
+			newV = strings.ReplaceAll(newV, "\"", "\\\"")
 			upsertParts = append(upsertParts, fmt.Sprintf("%s=\"%s\"", newK, newV))
 			secrets = append(secrets, newV)
 		}
 
 		if len(upsertParts) > 0 {
 			log.Printf("[DEBUG] Setting keys %v\n", keysToUpsert)
+			log.Printf("[DEBUG] Secrets %v\n", secrets)
+
+			log.Printf("[DEBUG] upsertParts %v\n", upsertParts)
+
 			res := run(client, fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")), secrets...)
 
 			if res.err != nil {
