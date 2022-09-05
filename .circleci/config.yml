@@ -121,6 +121,7 @@ jobs:
         type: boolean
         default: false
     executor: default
+    resource_class: large
     steps:
       - checkout
       - run:
@@ -131,7 +132,9 @@ jobs:
             echo $OSS_SIGNING_PASS | gpg -a --detach-sign --passphrase-fd 0 --pinentry-mode loopback /tmp/.circleci-gpg-setup
       - goreleaser/install:
           version: "0.178.0"
-      - run: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
+      - run:
+          command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
+          no_output_timeout: 30m
 
 workflows:
   build:
