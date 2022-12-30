@@ -249,7 +249,6 @@ resource "dokku_app" "test" {
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuAppDomainsLen("dokku_app.test", 1),
 				),
 			},
 			{
@@ -261,7 +260,6 @@ resource "dokku_app" "test" {
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuAppDomainsLen("dokku_app.test", 1),
 					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me"),
 				),
 			},
@@ -285,7 +283,6 @@ resource "dokku_app" "test" {
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuAppDomainsLen("dokku_app.test", 1),
 					testAccCheckDokkuAppDomain("dokku_app.test", "test.dokku.me"),
 				),
 			},
@@ -298,7 +295,7 @@ resource "dokku_app" "test" {
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuAppDomainsLen("dokku_app.test", 0),
+					testAccCheckDokkuAppDomainsExcludes("dokku_app.test", "test.dokku.me"),
 				),
 			},
 		},
@@ -755,7 +752,7 @@ func testAccCheckDokkuAppDomain(n string, domains ...string) resource.TestCheckF
 	}
 }
 
-func testAccCheckDokkuAppDomainsLen(n string, nOfDomains int) resource.TestCheckFunc {
+func testAccCheckDokkuAppDomainsExcludes(n string, domain string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 
@@ -765,14 +762,12 @@ func testAccCheckDokkuAppDomainsLen(n string, nOfDomains int) resource.TestCheck
 
 		sshClient := testAccProvider.Meta().(*goph.Client)
 
-		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+		app, _ := dokkuAppRetrieve(rs.Primary.ID, sshClient)
 
-		if err != nil {
-			return fmt.Errorf("Error retrieving app info")
-		}
-
-		if len(app.Domains) != nOfDomains {
-			return fmt.Errorf("Expected %d domains, got %d", nOfDomains, len(app.Domains))
+		for _, domain := range app.Domains {
+			if domain == domain {
+				return fmt.Errorf("App %s should not include domain %s", n, domain)
+			}
 		}
 
 		return nil
