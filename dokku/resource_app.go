@@ -41,6 +41,7 @@ func resourceApp() *schema.Resource {
 					Type: schema.TypeString,
 				},
 				Optional: true,
+				Computed: true,
 			},
 			"buildpacks": &schema.Schema{
 				Type: schema.TypeList,
@@ -99,7 +100,8 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 		return diag.FromErr(err)
 	}
 
-	d.SetId(app.Name)
+	app, err = dokkuAppRetrieve(app.Name, sshClient)
+	app.setOnResourceData(d)
 
 	return diags
 }

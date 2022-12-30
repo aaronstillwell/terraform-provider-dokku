@@ -249,7 +249,7 @@ resource "dokku_app" "test" {
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
-					testAccCheckDokkuAppDomainsLen("dokku_app.test", 0),
+					testAccCheckDokkuAppDomainsLen("dokku_app.test", 1),
 				),
 			},
 			{
@@ -293,6 +293,7 @@ resource "dokku_app" "test" {
 				Config: fmt.Sprintf(`
 resource "dokku_app" "test" {
 	name = "%s"
+	domains = []
 }
 `, appName),
 				Check: resource.ComposeTestCheckFunc(
