@@ -90,7 +90,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	// https://github.com/melbahja/goph/blob/6258fe9f54bb1f738543020ade7ab22c1dd233d7/examples/goph/main.go#L75-L109
 	verifyFn := func (host string, remote net.Addr, key ssh.PublicKey) error {
 		// See https://github.com/aaronstillwell/terraform-provider-dokku/issues/15 - this option
-		// has been implemented to support using the provider on hashicorp cloud platform
+		// has been implemented to support using the provider on Terraform Cloud
 		if d.Get("skip_known_hosts_check").(bool) == false {
 			hostFound, err := goph.CheckKnownHost(host, remote, key, "")
 
