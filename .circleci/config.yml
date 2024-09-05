@@ -42,7 +42,7 @@ jobs:
       TF_LOG_PATH: terraform.log
       TEST_RESULTS: /tmp/test-results
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2004:current
     steps:
       - checkout
       - go/install:
