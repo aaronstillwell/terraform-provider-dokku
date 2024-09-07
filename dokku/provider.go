@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+var DOKKU_VERSION semver.Version
+
 // Provider -
 func Provider() *schema.Provider {
 	return &schema.Provider{
@@ -129,6 +131,8 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	found := re.FindString(res.stdout)
 
 	hostVersion, err := semver.Parse(string(found))
+
+	DOKKU_VERSION = hostVersion
 
 	log.Printf("[DEBUG] host version %v", hostVersion)
 
