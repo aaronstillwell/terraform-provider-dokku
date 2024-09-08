@@ -26,6 +26,7 @@ provider "dokku" {
   ssh_user = "dokku"
   ssh_port = 8022
   ssh_cert = "/home/user/.ssh/dokku-cert"
+  # skip_known_hosts_check = true # Required for use on Terraform Cloud (see https://github.com/aaronstillwell/terraform-provider-dokku/issues/15)
 }
 ```
 
