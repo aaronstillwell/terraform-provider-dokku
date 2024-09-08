@@ -266,9 +266,8 @@ func readAppBuildpacks(appName string, client *goph.Client) ([]string, error) {
 	return buildpacks, nil
 }
 
-//
 func readAppPorts(appName string, client *goph.Client) ([]string, error) {
-	res := run(client, fmt.Sprintf("proxy:ports %s", appName))
+	res := run(client, fmt.Sprintf("%s %s", portReadCmd(), appName))
 
 	portsLines := strings.Split(res.stdout, "\n")
 
@@ -446,7 +445,7 @@ func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error
 	for _, portRange := range ports {
 		portRange = strings.TrimSpace(portRange)
 		if len(portRange) > 0 {
-			res := run(client, fmt.Sprintf("proxy:ports-add %s %s", appName, portRange))
+			res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, portRange))
 
 			if res.err != nil {
 				return res.err
@@ -563,7 +562,7 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 			if _, ok := newPortLookup[p]; !ok {
 				if len(p) > 0 {
 					// the old port isn't in the new one, lets remove it
-					res := run(client, fmt.Sprintf("proxy:ports-remove %s %s", appName, p))
+					res := run(client, fmt.Sprintf("%s %s %s", portRemoveCmd(), appName, p))
 
 					if res.err != nil {
 						return res.err
@@ -576,7 +575,7 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 			if _, ok := oldPortLookup[p]; !ok {
 				if len(p) > 0 {
 					// new port missing, lets add it
-					res := run(client, fmt.Sprintf("proxy:ports-add %s %s", appName, p))
+					res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, p))
 
 					if res.err != nil {
 						return res.err

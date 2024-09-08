@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+var DOKKU_VERSION semver.Version
+
 // Provider -
 func Provider() *schema.Provider {
 	return &schema.Provider{
@@ -137,9 +139,11 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	hostVersion, err := semver.Parse(string(found))
 
+	DOKKU_VERSION = hostVersion
+
 	log.Printf("[DEBUG] host version %v", hostVersion)
 
-	testedVersions := ">=0.24.0 <0.31.0"
+	testedVersions := ">=0.24.0 <0.35.0"
 	testedErrMsg := fmt.Sprintf("This provider has not been tested against Dokku version %s. Tested version range: %s", string(found), testedVersions)
 
 	if err == nil {

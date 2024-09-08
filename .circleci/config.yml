@@ -42,7 +42,7 @@ jobs:
       TF_LOG_PATH: terraform.log
       TEST_RESULTS: /tmp/test-results
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2004:current
     steps:
       - checkout
       - go/install:
@@ -144,7 +144,18 @@ workflows:
       - acceptance-tests:
           matrix:
             parameters:
-              dokku-version: ["0.24.10", "0.25.7", "0.26.8", "0.27.4", "0.28.4", "0.29.4", "0.30.1"]
+              dokku-version:
+                - "0.24.10"
+                - "0.25.7"
+                - "0.26.8"
+                - "0.27.4"
+                - "0.28.4"
+                - "0.29.4"
+                - "0.30.11"
+                - "0.31.5"
+                - "0.32.4"
+                - "0.33.9"
+                - "0.34.9"
           requires:
             - build
 
