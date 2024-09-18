@@ -3,6 +3,7 @@ module terraform-provider-dokku
 go 1.16
 
 require (
+	al.essio.dev/pkg/shellescape v1.5.0 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fatih/color v1.13.0 // indirect

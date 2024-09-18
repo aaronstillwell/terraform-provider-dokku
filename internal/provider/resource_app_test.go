@@ -56,6 +56,45 @@ resource "dokku_app" "test" {
 	})
 }
 
+func TestAccDokkuAppConfigVarsWithQuotes(t *testing.T) {
+	appName := fmt.Sprintf("test-config-vars-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	config_vars = {
+		FOO = "BA\"'R"
+	}
+}				
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO", "BA\"'R"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	config_vars = {
+		FOO = "BA''\"R"
+	}
+}				
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppConfigVar("dokku_app.test", "FOO", "BA''\"R"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccDokkuAppDomain(t *testing.T) {
 	appName := fmt.Sprintf("test-domain-%s", acctest.RandString(10))
 

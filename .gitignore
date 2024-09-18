@@ -62,8 +62,6 @@ override.tf.json
 .terraformrc
 terraform.rc
 terraform
-main.tf
-dokku.key
 
 dokku-vagrant*
 .vagrant
