@@ -2,11 +2,13 @@
 
 This is an experimental terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Only a small subset of configuration options are currently supported, and bugs may exist.
 
+This provider currently supports Dokku >= v0.24 and <= 0.34, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
+
 ## Getting started
 
 1. Add the provider to your terraform block
 
-```
+```hcl
 terraform {
   required_providers {
     dokku = {
@@ -17,18 +19,20 @@ terraform {
 ```
 
 2. Initialise the provider with your host settings. The SSH key should be that of a [dokku user](https://dokku.com/docs/deployment/user-management/). Dokku users have dokku set as a forced command - the provider will not attempt to explicitly specify the dokku binary over SSH.
-```
+
+```hcl
 provider "dokku" {
   ssh_host = "dokku.me"
   ssh_user = "dokku"
   ssh_port = 8022
   ssh_cert = "/home/user/.ssh/dokku-cert"
+  # skip_known_hosts_check = true # Required for use on Terraform Cloud (see https://github.com/aaronstillwell/terraform-provider-dokku/issues/15)
 }
 ```
 
 3. Declare resources. See examples for more info.
 
-```
+```hcl
 resource "dokku_app" "rails-app" {
   name = "rails-app"
 
@@ -46,6 +50,25 @@ resource "dokku_app" "rails-app" {
     "https://github.com/heroku/heroku-buildpack-nodejs.git",
     "https://github.com/heroku/heroku-buildpack-ruby.git"
   ]
+}
+```
+
+### Tested dokku versions
+
+The provider is currently tested against versions 0.24 through to 0.34 of dokku. Moving forward, it's likely the number of dokku versions being tested against may reduce slightly, with older versions being dropped as newer ones become available.
+
+The provider will check the version of dokku being used and by default will fail if a version outside this range is detected. This behaviour can be disabled with the `fail_on_untested_version` attribute. E.g
+
+```hcl
+provider "dokku" {
+  ssh_host = "dokku.me"
+  ssh_user = "dokku"
+  ssh_port = 8022
+  ssh_cert = "/home/user/.ssh/dokku-cert"
+  
+  # Tell the provider not to fail if a dokku version is detected that hasn't
+  # been tested against the current version of the provider.
+  fail_on_untested_version = false
 }
 ```
 
@@ -79,7 +102,7 @@ The `examples` directory can be used for ad-hoc testing configs manually.
 
 See also [examples/main.tf](./examples/main.tf) for a commented example.
 
-```
+```hcl
 terraform {
   required_providers {
     dokku = {

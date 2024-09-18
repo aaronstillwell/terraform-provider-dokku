@@ -128,7 +128,7 @@ func testClickhouseServiceIsStopped(n string, isStopped bool) resource.TestCheck
 			return fmt.Errorf("Service %s was not created", rs.Primary.ID)
 		}
 
-		serviceIsStopped := service["status"] == "exited"
+		serviceIsStopped := service["status"] == "exited" || service["status"] == "missing"
 		if serviceIsStopped != isStopped {
 			return fmt.Errorf("Service %s returned stopped = %v, expected %v - status was %s", rs.Primary.ID, serviceIsStopped, isStopped, service["status"])
 		}

@@ -80,7 +80,7 @@ func resourceChRead(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 
 	if status, ok := serviceInfo["status"]; ok {
-		d.Set("stopped", status == "exited")
+		d.Set("stopped", status == "exited" || status == "missing")
 	}
 
 	return diags

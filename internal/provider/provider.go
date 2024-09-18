@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+var DOKKU_VERSION semver.Version
+
 // Provider -
 func Provider() *schema.Provider {
 	return &schema.Provider{
@@ -43,6 +45,11 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_FAIL_ON_UNTESTED_VERSION", true),
 			},
+			"skip_known_hosts_check": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SKIP_KNOWN_HOSTS_CHECK", false),
+			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"dokku_app":                     resourceApp(),
@@ -60,42 +67,6 @@ func Provider() *schema.Provider {
 	}
 }
 
-func VerifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
-
-	//
-	// If you want to connect to new hosts.
-	// here your should check new connections public keys
-	// if the key not trusted you shuld return an error
-	//
-
-	// hostFound: is host in known hosts file.
-	// err: error if key not in known hosts file OR host in known hosts file but key changed!
-	hostFound, err := goph.CheckKnownHost(host, remote, key, "")
-
-	// Host in known hosts but key mismatch!
-	// Maybe because of MAN IN THE MIDDLE ATTACK!
-	if hostFound && err != nil {
-
-		return err
-	}
-
-	// handshake because public key already exists.
-	if hostFound && err == nil {
-
-		return nil
-	}
-
-	// // Ask user to check if he trust the host public key.
-	// if askIsHostTrusted(host, key) == false {
-
-	// 	// Make sure to return error on non trusted keys.
-	// 	return errors.New("you typed no, aborted!")
-	// }
-
-	// Add the new host to known hosts file.
-	return goph.AddKnownHost(host, remote, key, "")
-}
-
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	host := d.Get("ssh_host").(string)
 	user := d.Get("ssh_user").(string)
@@ -107,6 +78,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	log.Printf("[DEBUG] user %v\n", user)
 	log.Printf("[DEBUG] port %v\n", port)
 	log.Printf("[DEBUG] cert %v\n", certPath)
+	log.Printf("[DEBUG] skip_known_hosts_check %v\n", d.Get("skip_known_hosts_check").(bool))
 
 	var diags diag.Diagnostics
 
@@ -116,12 +88,35 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 		return nil, diag.Errorf("Could not find private key %s: %v", certPath, err)
 	}
 
+	// Check known hosts
+	// https://github.com/melbahja/goph/blob/6258fe9f54bb1f738543020ade7ab22c1dd233d7/examples/goph/main.go#L75-L109
+	verifyFn := func (host string, remote net.Addr, key ssh.PublicKey) error {
+		// See https://github.com/aaronstillwell/terraform-provider-dokku/issues/15 - this option
+		// has been implemented to support using the provider on Terraform Cloud
+		if d.Get("skip_known_hosts_check").(bool) == false {
+			hostFound, err := goph.CheckKnownHost(host, remote, key, "")
+
+			// Host in known hosts but key mismatch
+			if hostFound && err != nil {
+				return err
+			}
+
+			// handshake because public key already exists.
+			if hostFound && err == nil {
+				return nil
+			}
+		} else {
+			log.Printf("[WARN]: skip_known_hosts_check is set to true, no key verification will be run against the SSH host")
+		}
+		return goph.AddKnownHost(host, remote, key, "")
+	}
+
 	sshConfig := &goph.Config{
 		Auth:     auth,
 		Addr:     host,
 		Port:     port,
 		User:     user,
-		Callback: VerifyHost,
+		Callback: verifyFn,
 	}
 
 	client, err := goph.NewConn(sshConfig)
@@ -144,9 +139,11 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	hostVersion, err := semver.Parse(string(found))
 
+	DOKKU_VERSION = hostVersion
+
 	log.Printf("[DEBUG] host version %v", hostVersion)
 
-	testedVersions := ">=0.24.0 <0.28.0"
+	testedVersions := ">=0.24.0 <0.35.0"
 	testedErrMsg := fmt.Sprintf("This provider has not been tested against Dokku version %s. Tested version range: %s", string(found), testedVersions)
 
 	if err == nil {

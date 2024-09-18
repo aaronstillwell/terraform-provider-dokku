@@ -40,13 +40,13 @@ func TestAccPostgresServiceImage(t *testing.T) {
 				Config: fmt.Sprintf(`
 resource "dokku_postgres_service" "test" {
 	name = "%s"
-	image = "circleci/postgres"
-	image_version = "9.6.16-alpine-ram"
+	image = "cimg/postgres"
+	image_version = "16.4-postgis"
 }
 `, serviceName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckPgServiceExists("dokku_postgres_service.test"),
-					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "circleci/postgres", "9.6.16-alpine-ram"),
+					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "cimg/postgres", "16.4-postgis"),
 				),
 			},
 		},
@@ -75,14 +75,14 @@ resource "dokku_postgres_service" "test" {
 				Config: fmt.Sprintf(`
 resource "dokku_postgres_service" "test" {
 	name = "%s"
-	image = "circleci/postgres"
-	image_version = "9.6.16-alpine-ram"
+	image = "cimg/postgres"
+	image_version = "16.4-postgis"
 }
 `, newServiceName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckPgServiceExists("dokku_postgres_service.test"),
 					testAccCheckPgServiceName("dokku_postgres_service.test", newServiceName),
-					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "circleci/postgres", "9.6.16-alpine-ram"),
+					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "cimg/postgres", "16.4-postgis"),
 				),
 			},
 		},
