@@ -7,6 +7,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/melbahja/goph"
+
+	"al.essio.dev/pkg/shellescape"
 )
 
 //
@@ -93,14 +95,14 @@ func (app *DokkuApp) managedPorts(d *schema.ResourceData) []string {
 	return tfPorts
 }
 
-// TODO escape quotes
 func (app *DokkuApp) configVarsStr() string {
 	str := ""
 	for k, v := range app.ConfigVars {
 		if len(str) > 0 {
 			str = str + " "
 		}
-		str = str + k + "=\"" + v + "\""
+		str = str + k + "=" + shellescape.Quote(v) + ""
+
 	}
 	return str
 }
@@ -493,12 +495,13 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		secrets := make([]string, 0)
 		for newK, newV := range newConfigVar {
 			keysToUpsert = append(keysToUpsert, newK)
-			upsertParts = append(upsertParts, fmt.Sprintf("%s=\"%s\"", newK, newV))
+			upsertParts = append(upsertParts, fmt.Sprintf("%s=%s", newK, shellescape.Quote(newV)))
 			secrets = append(secrets, newV)
 		}
 
 		if len(upsertParts) > 0 {
 			log.Printf("[DEBUG] Setting keys %v\n", keysToUpsert)
+
 			res := run(client, fmt.Sprintf("config:set %s %s", appName, strings.Join(upsertParts, " ")), secrets...)
 
 			if res.err != nil {
