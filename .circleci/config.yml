@@ -115,6 +115,22 @@ jobs:
       - store_test_results: # upload test results for display in Test Summary
           path: /tmp/test-results
 
+  build-docs:
+    executor: default
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install tfplugindocs
+          command: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+      - run:
+          name: Generate docs
+          command: tfplugindocs generate
+      - persist_to_workspace:
+          root: .
+          paths:
+            - docs/
+
   release:
     parameters:
       dry-run:
@@ -124,6 +140,8 @@ jobs:
     resource_class: large
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - run:
           name: Import signing key
           command: |
@@ -159,7 +177,13 @@ workflows:
           requires:
             - build
 
+      - build-docs:
+          requires:
+            - build
+
       - release:
+          requires:
+            - build-docs
           context:
             - github-release
             - oss-signing-key
