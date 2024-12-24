@@ -12,6 +12,7 @@ import (
 
 func resourceApp() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, and port mapping.",
 		CreateContext: appCreate,
 		ReadContext:   appRead,
 		UpdateContext: appUpdate,
@@ -20,12 +21,14 @@ func resourceApp() *schema.Resource {
 			"name": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
+				Description: "The name of the Dokku application.",
 			},
 			// TODO: locked support
 			"locked": &schema.Schema{
 				Type:     schema.TypeBool,
 				Default:  false,
 				Optional: true,
+				Description: "(Not yet implemented) Whether the application is locked for deployment. When true, deploys to this application will be blocked.",
 			},
 			"config_vars": &schema.Schema{
 				Type: schema.TypeMap,
@@ -34,6 +37,7 @@ func resourceApp() *schema.Resource {
 				},
 				Optional:  true,
 				Sensitive: true,
+				Description: "Environment variables to set for the application. These are exposed to the application at runtime.",
 			},
 			"domains": &schema.Schema{
 				Type: schema.TypeSet,
@@ -42,6 +46,7 @@ func resourceApp() *schema.Resource {
 				},
 				Optional: true,
 				Computed: true,
+				Description: "List of domains to be associated with the application.",
 			},
 			"buildpacks": &schema.Schema{
 				Type: schema.TypeList,
@@ -49,6 +54,7 @@ func resourceApp() *schema.Resource {
 					Type: schema.TypeString,
 				},
 				Optional: true,
+				Description: "List of buildpacks to be used when deploying the application. These can be URLs to custom buildpacks or shorthand names for official Heroku buildpacks.",
 			},
 			"ports": &schema.Schema{
 				Type: schema.TypeSet,
@@ -56,6 +62,7 @@ func resourceApp() *schema.Resource {
 					Type: schema.TypeString,
 				},
 				Optional: true,
+				Description: "Set of port mappings for the application. Each mapping should be in the format 'scheme:hostPort:containerPort' (e.g., 'https:443:8080').",
 				// ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 				// 	v := val.([]string)
 
@@ -73,12 +80,14 @@ func resourceApp() *schema.Resource {
 				Optional:     true,
 				Default:      "0.0.0.0",
 				ValidateFunc: validation.IsIPv4Address,
+				Description: "The IPv4 address that nginx will bind to for this application. Defaults to '0.0.0.0'.",
 			},
 			"nginx_bind_address_ipv6": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Default:      "::",
 				ValidateFunc: validation.IsIPv6Address,
+				Description: "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
 			},
 		},
 		Importer: &schema.ResourceImporter{

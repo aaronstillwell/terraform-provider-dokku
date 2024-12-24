@@ -10,6 +10,7 @@ import (
 
 func resourceMysqlServiceLink() *schema.Resource {
 	return &schema.Resource{
+		Description: "Links a Dokku MySQL service to an application, creating a connection between them and injecting the MySQL connection details into the application's environment variables.",
 		CreateContext: resourceMysqlServiceLinkCreate,
 		ReadContext:   resourceMysqlServiceLinkRead,
 		DeleteContext: resourceMysqlServiceLinkDelete,
@@ -18,21 +19,25 @@ func resourceMysqlServiceLink() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
+				Description: "The name of the MySQL service to link to the application.",
 			},
 			"app": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
+				Description: "The name of the Dokku application that will be linked to the MySQL service.",
 			},
 			"alias": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+				Description: "Alternative environment variable name to use in exposing credentials to the app.",
 			},
 			"query_string": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+				Description: "Additional connection parameters to append to the DATABASE_URL environment variable as a query string.",
 			},
 		},
 	}

@@ -1,0 +1,20 @@
+---
+page_title: "Provider: Dokku"
+description: |-
+  The Dokku provider allows Terraform to manage resources on a Dokku host.
+---
+
+# Dokku Provider
+
+The Dokku provider allows Terraform to manage resources on a Dokku host. Dokku is a Docker-powered Platform-as-a-Service (PaaS) that helps you manage the deployment of your applications.
+
+This provider enables you to manage Dokku applications and their associated services including:
+- Application configuration (domains, environment variables, ports)
+- Database services (PostgreSQL, MySQL, Redis)
+- Service linking (connecting applications to databases)
+
+## Example Usage
+
+{{ tffile "examples/main.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}

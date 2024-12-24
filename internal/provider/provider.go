@@ -24,31 +24,37 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_HOST", nil),
+				Description: "The hostname of your Dokku server. Can be set via DOKKU_SSH_HOST environment variable.",
 			},
 			"ssh_user": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_USER", "dokku"),
+				Description: "The SSH user to connect to your Dokku server. Defaults to 'dokku'. Can be set via DOKKU_SSH_USER environment variable.",
 			},
 			"ssh_port": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_PORT", 22),
+				Description: "The SSH port of your Dokku server. Defaults to 22. Can be set via DOKKU_SSH_PORT environment variable.",
 			},
 			"ssh_cert": {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_CERT", nil),
+				Description: "The path to the SSH private key for connecting to your Dokku server. Can be set via DOKKU_SSH_CERT environment variable.",
 			},
 			"fail_on_untested_version": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_FAIL_ON_UNTESTED_VERSION", true),
+				Description: "Whether to fail if the Dokku version has not been tested with this provider. Defaults to true. Can be set via DOKKU_FAIL_ON_UNTESTED_VERSION environment variable.",
 			},
 			"skip_known_hosts_check": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SKIP_KNOWN_HOSTS_CHECK", false),
+				Description: "Whether to skip SSH known hosts verification. Defaults to false. Can be set via DOKKU_SKIP_KNOWN_HOSTS_CHECK environment variable.",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
