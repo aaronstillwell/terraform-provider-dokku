@@ -89,6 +89,53 @@ resource "dokku_postgres_service" "test" {
 	})
 }
 
+// Previously had a problem reading stopped services
+// https://github.com/aaronstillwell/terraform-provider-dokku/issues/17
+func TestAccReadStoppedPostgresService(t *testing.T) {
+	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testPgServiceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name    = "%s"
+	stopped = true
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgServiceStopped("dokku_postgres_service.test", true),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name    = "%s"
+	stopped = false
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgServiceStopped("dokku_postgres_service.test", false),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckPgServiceExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -178,6 +225,39 @@ func testAccCheckPgServiceImageAndVersion(n string, image string, version string
 
 		if service.ImageVersion != version {
 			return fmt.Errorf("Image version expected to be %s, got %s", version, service.ImageVersion)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckPgServiceStopped(n string, isStopped bool) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("Service ID not present")
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		service := NewDokkuPostgresService(rs.Primary.ID)
+		err := dokkuPgRead(service, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error reading pg resource %s", rs.Primary.ID)
+		}
+
+		if isStopped && !service.Stopped {
+			return fmt.Errorf("Service %s expected to be stopped, but it seems to be running", n)
+		}
+
+		if !isStopped && service.Stopped {
+			return fmt.Errorf("Service %s expected to be running, but it seems to be stopped", n)
 		}
 
 		return nil
