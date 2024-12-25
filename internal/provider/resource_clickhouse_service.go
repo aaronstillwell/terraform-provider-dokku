@@ -31,6 +31,11 @@ func resourceClickhouseService() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"exposed": {
+				Type:     schema.TypeString,
+				Optional: true,
+				// TODO validator?
+			},
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
