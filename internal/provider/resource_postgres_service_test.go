@@ -89,6 +89,50 @@ resource "dokku_postgres_service" "test" {
 	})
 }
 
+func TestAccPostgresExpose(t *testing.T) {
+	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testPgServiceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+	exposed = "0.0.0.0:8585"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgExposed("dokku_postgres_service.test", true, "0.0.0.0:8585"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgExposed("dokku_postgres_service.test", false, ""),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckPgServiceExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -178,6 +222,41 @@ func testAccCheckPgServiceImageAndVersion(n string, image string, version string
 
 		if service.ImageVersion != version {
 			return fmt.Errorf("Image version expected to be %s, got %s", version, service.ImageVersion)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckPgExposed(n string, isExposed bool, host string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("Service ID not present")
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		service := NewDokkuPostgresService(rs.Primary.ID)
+		err := dokkuPgRead(service, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error reading pg resource %s", rs.Primary.ID)
+		}
+
+		if isExposed {
+			if service.Exposed != host {
+				return fmt.Errorf("pg was not exposed as expected, returned %s", service.Exposed)
+			}
+		} else {
+			if service.Exposed != "" {
+				return fmt.Errorf("Service was exposed unexpectedly, returned %s", service.Exposed)
+			}
 		}
 
 		return nil

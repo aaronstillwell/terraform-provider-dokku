@@ -26,6 +26,7 @@ type DokkuGenericService struct {
 	// RootPassword string
 	// CustomEnv    string
 	Stopped bool
+	Exposed string
 
 	CmdName string
 }
@@ -40,6 +41,7 @@ func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	// d.Set("root_password", s.RootPassword)
 	// d.Set("custom_env", s.CustomEnv)
 	d.Set("stopped", s.Stopped)
+	d.Set("exposed", s.Exposed)
 }
 
 func (s *DokkuGenericService) Cmd(str ...string) string {
@@ -103,6 +105,18 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 
 	if version, ok := serviceInfo["version"]; ok {
 		service.Image, service.ImageVersion = dockerImageAndVersion(version)
+	}
+
+	if exposedPorts, ok := serviceInfo["exposed ports"]; ok {
+		if exposedPorts != "-" {
+			port := strings.Split(exposedPorts, "->")
+			if len(port) > 1 {
+				service.Exposed = strings.TrimSpace(port[1])
+			} else {
+				// Handle the error case - either return an error or set a default
+				return fmt.Errorf("invalid port mapping format: %s", exposedPorts)
+			}
+		}
 	}
 
 	return nil
@@ -238,6 +252,20 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 			res = run(client, fmt.Sprintf("%s:stop %s", service.CmdName, service.Name))
 		} else {
 			res = run(client, fmt.Sprintf("%s:start %s", service.CmdName, service.Name))
+		}
+
+		if res.err != nil {
+			return res.err
+		}
+	}
+
+	if d.HasChange("exposed") {
+		var res SshOutput
+		exposed := d.Get("exposed").(string)
+		if exposed == "" {
+			res = run(client, fmt.Sprintf("%s:unexpose %s", service.CmdName, service.Name))
+		} else {
+			res = run(client, fmt.Sprintf("%s:expose %s %s", service.CmdName, service.Name, exposed))
 		}
 
 		if res.err != nil {

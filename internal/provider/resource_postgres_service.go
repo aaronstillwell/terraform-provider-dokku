@@ -49,6 +49,11 @@ func resourcePostgresService() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"exposed": {
+				Type:     schema.TypeString,
+				Optional: true,
+				// TODO validator?
+			},
 			// TODO backup related stuff
 			// "backup_auth_access_key": {
 			// 	Type:     schema.TypeString,
