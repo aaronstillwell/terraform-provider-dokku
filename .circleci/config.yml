@@ -116,7 +116,8 @@ jobs:
           path: /tmp/test-results
 
   build-docs:
-    executor: default
+    docker:
+      - image: cimg/go:1.23
     resource_class: small
     steps:
       - checkout
@@ -125,7 +126,7 @@ jobs:
           command: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
       - run:
           name: Generate docs
-          command: tfplugindocs generate
+          command: tfplugindocs generate --provider-name terraform-provider-dokku
       - persist_to_workspace:
           root: .
           paths:
