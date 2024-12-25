@@ -37,6 +37,7 @@ func resourceMysqlService() *schema.Resource {
 			"exposed": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
 		},
