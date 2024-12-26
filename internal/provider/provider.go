@@ -40,6 +40,12 @@ func Provider() *schema.Provider {
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_CERT", nil),
 			},
+			"ssh_passphrase": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_PASSPHRASE", nil),
+				Description: "An optional passphrase to be used in conjunction with the provided SSH key.",
+			},
 			"fail_on_untested_version": {
 				Type:        schema.TypeBool,
 				Optional:    true,
@@ -71,22 +77,41 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	host := d.Get("ssh_host").(string)
 	user := d.Get("ssh_user").(string)
 	port := uint(d.Get("ssh_port").(int))
-	certPath := d.Get("ssh_cert").(string)
+	ssh_cert := d.Get("ssh_cert").(string)
+	ssh_passphrase := d.Get("ssh_passphrase").(string)
+
+	var auth goph.Auth
+	_, err := ssh.ParsePrivateKey([]byte(ssh_cert))
+	if err != nil {
+		log.Printf("[DEBUG] attempting to load SSH cert from file path %s\n", ssh_cert)
+		// could not parse a key directly, try it as a filepath
+		var err error
+		auth, err = goph.Key(ssh_cert, ssh_passphrase)
+		if err != nil {
+			log.Printf("[ERROR]: %v", err)
+			return nil, diag.Errorf("Could not find private key %s: %v", ssh_cert, err)
+		}
+	}
+
+	if auth == nil {
+		log.Printf("[DEBUG] SSH cert looks like its being provided inline\n")
+		var err error
+		auth, err = goph.RawKey(ssh_cert, ssh_passphrase)
+
+		if err != nil {
+			// could not proceed with inline ssh cert
+			log.Printf("[ERROR]: %v", err)
+			return nil, diag.Errorf("Could not auth with inline SSH key: %v", err)
+		}
+	}
 
 	log.Printf("[DEBUG] establishing SSH connection\n")
 	log.Printf("[DEBUG] host %v\n", host)
 	log.Printf("[DEBUG] user %v\n", user)
 	log.Printf("[DEBUG] port %v\n", port)
-	log.Printf("[DEBUG] cert %v\n", certPath)
 	log.Printf("[DEBUG] skip_known_hosts_check %v\n", d.Get("skip_known_hosts_check").(bool))
 
 	var diags diag.Diagnostics
-
-	auth, err := goph.Key(certPath, "")
-	if err != nil {
-		log.Printf("[ERROR]: %v", err)
-		return nil, diag.Errorf("Could not find private key %s: %v", certPath, err)
-	}
 
 	// Check known hosts
 	// https://github.com/melbahja/goph/blob/6258fe9f54bb1f738543020ade7ab22c1dd233d7/examples/goph/main.go#L75-L109
