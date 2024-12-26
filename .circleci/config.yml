@@ -181,6 +181,9 @@ workflows:
       - build-docs:
           requires:
             - build
+          filters:
+            tags:
+              only: /^v.*/
 
       - release:
           requires:
