@@ -114,7 +114,7 @@ jobs:
             # need one with a passphrase too
             ssh-keygen -t rsa -N "foobar" -f dokku-ssh-with-passphrase
             sudo docker cp dokku-ssh-with-passphrase.pub dokku:/tmp/dokku-ssh-with-passphrase.pub
-            sudo docker exec dokku dokku ssh-keys:add dokku dokku-ssh-with-passphrase.pub
+            sudo docker exec dokku dokku ssh-keys:add dokku-passphrase dokku-ssh-with-passphrase.pub
       - wait-for/sh-command:
           timeout: 300
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
