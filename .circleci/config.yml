@@ -41,9 +41,11 @@ jobs:
           version: << pipeline.parameters.go-version >>
       # Not sure why we need to run this to get the download to work
       - run: go clean -modcache
-      - go/load-cache
+      - go/load-cache:
+          key: "v2"
       - go/mod-download
-      - go/save-cache
+      - go/save-cache:
+          key: "v2"
 
   acceptance-tests:
     parameters:
@@ -61,7 +63,8 @@ jobs:
       - checkout
       - go/install:
           version: << pipeline.parameters.go-version >>
-      - go/load-cache
+      - go/load-cache:
+          key: "v2"
       - terraform/install:
           terraform_version: "1.1.5"
       # Was having problems with docker <20 and dokku >= 0.26.2
