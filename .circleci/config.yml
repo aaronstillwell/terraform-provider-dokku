@@ -55,6 +55,7 @@ jobs:
       DOKKU_SSH_HOST: "127.0.0.1"
       DOKKU_SSH_PORT: 3022
       DOKKU_SSH_CERT: "/home/circleci/project/dokku-ssh"
+      DOKKU_SSH_CERT_WITH_PASSPHRASE: "/home/circleci/project/dokku-ssh-with-passphrase"
       TF_LOG: DEBUG
       TF_LOG_PATH: terraform.log
       TEST_RESULTS: /tmp/test-results
@@ -110,6 +111,10 @@ jobs:
             ssh-keygen -t rsa -N "" -f dokku-ssh
             sudo docker cp dokku-ssh.pub dokku:/tmp/dokku-ssh.pub
             sudo docker exec dokku dokku ssh-keys:add dokku dokku-ssh.pub
+            # need one with a passphrase too
+            ssh-keygen -t rsa -N "foobar" -f dokku-ssh-with-passphrase
+            sudo docker cp dokku-ssh-with-passphrase.pub dokku:/tmp/dokku-ssh-with-passphrase.pub
+            sudo docker exec dokku dokku ssh-keys:add dokku-passphrase dokku-ssh-with-passphrase.pub
       - wait-for/sh-command:
           timeout: 300
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
