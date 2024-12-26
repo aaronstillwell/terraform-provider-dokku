@@ -57,7 +57,7 @@ func TestAccInlineSshKeyWithPassphrase(t *testing.T) {
 				Config: fmt.Sprintf(`
 					provider "dokku" {
 						ssh_cert = <<-EOF
-						%s
+%s
 						EOF
 						ssh_passphrase = "foobar"
 					}

@@ -81,15 +81,21 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	ssh_passphrase := d.Get("ssh_passphrase").(string)
 
 	var auth goph.Auth
-	_, err := ssh.ParsePrivateKey([]byte(ssh_cert))
+	var err error
+	if ssh_passphrase != "" {
+		_, err = ssh.ParsePrivateKeyWithPassphrase([]byte(ssh_cert), []byte(ssh_passphrase))
+	} else {
+		_, err = ssh.ParsePrivateKey([]byte(ssh_cert))
+	}
+
 	if err != nil {
 		log.Printf("[DEBUG] attempting to load SSH cert from file path %s\n", ssh_cert)
+		log.Printf("[DEBUG] %v\n", err)
 		// could not parse a key directly, try it as a filepath
 		var err error
 		auth, err = goph.Key(ssh_cert, ssh_passphrase)
 		if err != nil {
-			log.Printf("[ERROR]: %v", err)
-			return nil, diag.Errorf("Could not find private key %s: %v", ssh_cert, err)
+			return nil, diag.Errorf("Attempted to load private key from file but failed")
 		}
 	}
 
@@ -100,7 +106,6 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 		if err != nil {
 			// could not proceed with inline ssh cert
-			log.Printf("[ERROR]: %v", err)
 			return nil, diag.Errorf("Could not auth with inline SSH key: %v", err)
 		}
 	}
@@ -115,7 +120,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	// Check known hosts
 	// https://github.com/melbahja/goph/blob/6258fe9f54bb1f738543020ade7ab22c1dd233d7/examples/goph/main.go#L75-L109
-	verifyFn := func (host string, remote net.Addr, key ssh.PublicKey) error {
+	verifyFn := func(host string, remote net.Addr, key ssh.PublicKey) error {
 		// See https://github.com/aaronstillwell/terraform-provider-dokku/issues/15 - this option
 		// has been implemented to support using the provider on Terraform Cloud
 		if d.Get("skip_known_hosts_check").(bool) == false {
