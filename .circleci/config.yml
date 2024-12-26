@@ -39,6 +39,8 @@ jobs:
       - checkout
       - go/install:
           version: << pipeline.parameters.go-version >>
+      # Not sure why we need to run this to get the download to work
+      - run: go clean -modcache
       - go/load-cache
       - go/mod-download
       - go/save-cache
