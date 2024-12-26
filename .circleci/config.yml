@@ -3,7 +3,7 @@ version: 2.1
 orbs:
   docker: circleci/docker@2.0.1
   goreleaser: hubci/goreleaser@1.0.0
-  go: circleci/go@1.7.0
+  go: circleci/go@2.2.3
   terraform: circleci/terraform@2.1.0
   wait-for: cobli/wait-for@0.0.2
 
@@ -20,15 +20,17 @@ executors:
   vm:
     machine:
       image: ubuntu-2004:current
+    environment:
+      GOMODCACHE: /home/circleci/go/pkg/mod
 
 jobs:
   build:
     executor: default
     steps:
       - checkout
-      - go/load-cache
+      - go/load-mod-cache
       - go/mod-download
-      - go/save-cache
+      - go/save-mod-cache
       - run:
           name: Build provider
           command: make install
@@ -41,11 +43,11 @@ jobs:
           version: << pipeline.parameters.go-version >>
       # Not sure why we need to run this to get the download to work
       - run: go clean -modcache
-      - go/load-cache:
-          key: "v2"
+      - go/load-mod-cache:
+          key: "v3"
       - go/mod-download
-      - go/save-cache:
-          key: "v2"
+      - go/save-mod-cache:
+          key: "v3"
 
   acceptance-tests:
     parameters:
@@ -63,8 +65,8 @@ jobs:
       - checkout
       - go/install:
           version: << pipeline.parameters.go-version >>
-      - go/load-cache:
-          key: "v2"
+      - go/load-mod-cache:
+          key: "v3"
       - terraform/install:
           terraform_version: "1.1.5"
       # Was having problems with docker <20 and dokku >= 0.26.2
