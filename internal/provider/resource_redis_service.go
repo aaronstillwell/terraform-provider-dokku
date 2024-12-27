@@ -10,6 +10,7 @@ import (
 
 func resourceRedisService() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a Redis service in Dokku. Requires the Redis Dokku plugin to be installed.",
 		CreateContext: resourceRedisCreate,
 		ReadContext:   resourceRedisRead,
 		UpdateContext: resourceRedisUpdate,
@@ -18,21 +19,25 @@ func resourceRedisService() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
+				Description: "The name of the Redis service.",
 			},
 			"image": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				Description: "The Docker image to use for the Redis service. If not specified, Dokku will use its default Redis image.",
 			},
 			"image_version": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				Description: "The version of Redis to use. If not specified, Dokku will use its default version.",
 			},
 			"stopped": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Computed: true,
+				Description: "Whether the Redis service is stopped. When true, the Redis service will not be running but data will be preserved.",
 			},
 			"expose_on": {
 				Type:        schema.TypeString,

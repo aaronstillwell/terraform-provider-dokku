@@ -16,6 +16,7 @@ import (
 
 func resourceClickhouseService() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a ClickHouse service in Dokku. Requires the ClickHouse Dokku plugin to be installed.",
 		CreateContext: resourceChCreate,
 		ReadContext:   resourceChRead,
 		UpdateContext: resourceChUpdate,
@@ -25,11 +26,13 @@ func resourceClickhouseService() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
+				Description: "The name of the ClickHouse service.",
 			},
 			"stopped": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Computed: true,
+				Description: "Whether the ClickHouse service is stopped. When true, the database service will not be running but data will be preserved.",
 			},
 		},
 		Importer: &schema.ResourceImporter{

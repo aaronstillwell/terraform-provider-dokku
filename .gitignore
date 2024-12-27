@@ -65,3 +65,6 @@ terraform
 
 dokku-vagrant*
 .vagrant
+
+docs/*
+!docs/.gitkeep

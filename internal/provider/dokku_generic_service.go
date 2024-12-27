@@ -97,11 +97,17 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 	}
 
 	if status, ok := serviceInfo["status"]; ok {
-		service.Stopped = status == "exited"
+		service.Stopped = status == "exited" || status == "missing"
 	}
 
-	if version, ok := serviceInfo["version"]; ok {
-		service.Image, service.ImageVersion = dockerImageAndVersion(version)
+	log.Printf("[DEBUG] %s status %s", service.Name, serviceInfo["status"])
+	log.Printf("[DEBUG] %s stopped? %t", service.Name, service.Stopped)
+
+	// cannot read image & version if the service is stopped
+	if !service.Stopped {
+		if version, ok := serviceInfo["version"]; ok {
+			service.Image, service.ImageVersion = dockerImageAndVersion(version)
+		}
 	}
 
 	if exposedPorts, ok := serviceInfo["exposed ports"]; ok {

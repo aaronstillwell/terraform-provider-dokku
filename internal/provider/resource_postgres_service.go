@@ -10,6 +10,7 @@ import (
 
 func resourcePostgresService() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a Postgres database service, allowing for creation and configuration of Postgres databases. Requires the Postgres Dokku plugin to be installed.",
 		CreateContext: resourcePgCreate,
 		ReadContext:   resourcePgRead,
 		UpdateContext: resourcePgUpdate,
@@ -18,17 +19,20 @@ func resourcePostgresService() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
+				Description: "The name of the Postgres service.",
 			},
 			"image": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				Description: "The Docker image to use for the Postgres service. If not specified, Dokku will use its default Postgres image.",
 			},
 			// TODO: locked support
 			"image_version": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				Description: "The version of Postgres to use. If not specified, Dokku will use its default version.",
 			},
 			// We can't support these yet as there's no way to
 			// retrieve them from dokku
@@ -48,6 +52,7 @@ func resourcePostgresService() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Computed: true,
+				Description: "Whether the Postgres service is stopped. When true, the database service will not be running but data will be preserved.",
 			},
 			"expose_on": {
 				Type:        schema.TypeString,

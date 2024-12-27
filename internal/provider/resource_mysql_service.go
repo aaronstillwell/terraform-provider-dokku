@@ -10,6 +10,7 @@ import (
 
 func resourceMysqlService() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a MySQL service in Dokku. Requires the MySQL Dokku plugin to be installed.",
 		CreateContext: resourceMysqlCreate,
 		ReadContext:   resourceMysqlRead,
 		UpdateContext: resourceMysqlUpdate,
@@ -18,21 +19,25 @@ func resourceMysqlService() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
+				Description: "The name of the MySQL service.",
 			},
 			"image": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				Description: "The Docker image to use for the MySQL service. If not specified, Dokku will use its default MySQL image.",
 			},
 			"image_version": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				Description: "The version of MySQL to use. If not specified, Dokku will use its default version.",
 			},
 			"stopped": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Computed: true,
+				Description: "Whether the MySQL service is stopped. When true, the database service will not be running but data will be preserved.",
 			},
 			"expose_on": {
 				Type:        schema.TypeString,
