@@ -31,9 +31,9 @@ func resourceClickhouseService() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"exposed": {
-				Type:     schema.TypeString,
-				Optional: true,
+			"exposed_on": {
+				Type:        schema.TypeString,
+				Optional:    true,
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
@@ -68,7 +68,6 @@ func resourceChCreate(ctx context.Context, d *schema.ResourceData, m interface{}
 	return diags
 }
 
-//
 func resourceChRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -92,7 +91,6 @@ func resourceChRead(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	return diags
 }
 
-//
 func resourceChUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -116,7 +114,6 @@ func resourceChUpdate(ctx context.Context, d *schema.ResourceData, m interface{}
 	return diags
 }
 
-//
 func resourceChDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 

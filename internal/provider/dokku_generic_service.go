@@ -31,7 +31,6 @@ type DokkuGenericService struct {
 	CmdName string
 }
 
-//
 func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	d.SetId(s.Id)
 	d.Set("name", s.Name)
@@ -41,14 +40,13 @@ func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	// d.Set("root_password", s.RootPassword)
 	// d.Set("custom_env", s.CustomEnv)
 	d.Set("stopped", s.Stopped)
-	d.Set("exposed", s.Exposed)
+	d.Set("exposed_on", s.Exposed)
 }
 
 func (s *DokkuGenericService) Cmd(str ...string) string {
 	return fmt.Sprintf("%s:%s", s.CmdName, strings.Join(str, " "))
 }
 
-//
 func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...string) string {
 	addAllFlags := len(flagsToAddSlice) == 0
 	flagsToAdd := sliceToLookupMap(flagsToAddSlice)
@@ -87,7 +85,6 @@ func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...strin
 	return strings.Join(flags, " ")
 }
 
-//
 func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 	serviceInfo, err := getServiceInfo(service.CmdName, service.Name, client)
 
@@ -157,7 +154,6 @@ func getServiceInfo(service string, name string, client *goph.Client) (map[strin
 	return data, nil
 }
 
-//
 func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("%s:create %s %s", service.CmdName, service.Name, createServiceFlagStr(service)))
 
@@ -178,7 +174,6 @@ func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error
 	}
 }
 
-//
 func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, client *goph.Client) error {
 	serviceName := d.Get("name").(string)
 	oldServiceName := d.Get("name").(string)
@@ -259,9 +254,9 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 		}
 	}
 
-	if d.HasChange("exposed") {
+	if d.HasChange("exposed_on") {
 		var res SshOutput
-		exposed := d.Get("exposed").(string)
+		exposed := d.Get("exposed_on").(string)
 		if exposed == "" {
 			res = run(client, fmt.Sprintf("%s:unexpose %s", service.CmdName, service.Name))
 		} else {
@@ -276,7 +271,6 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 	return dokkuServiceRead(service, client)
 }
 
-//
 func dokkuServiceDestroy(cmd string, serviceName string, client *goph.Client) error {
 	log.Printf("[DEBUG] running %s:destroy on %s\n", cmd, serviceName)
 	res := run(client, fmt.Sprintf("%s:destroy %s -f", cmd, serviceName))

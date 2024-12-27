@@ -34,9 +34,9 @@ func resourceRedisService() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"exposed": {
-				Type:     schema.TypeString,
-				Optional: true,
+			"exposed_on": {
+				Type:        schema.TypeString,
+				Optional:    true,
 				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
 				// TODO validator?
 			},
@@ -47,7 +47,6 @@ func resourceRedisService() *schema.Resource {
 	}
 }
 
-//
 func resourceRedisCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -65,7 +64,6 @@ func resourceRedisCreate(ctx context.Context, d *schema.ResourceData, m interfac
 	return diags
 }
 
-//
 func resourceRedisRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -90,7 +88,6 @@ func resourceRedisRead(ctx context.Context, d *schema.ResourceData, m interface{
 	return diags
 }
 
-//
 func resourceRedisUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -106,7 +103,6 @@ func resourceRedisUpdate(ctx context.Context, d *schema.ResourceData, m interfac
 	return diags
 }
 
-//
 func resourceRedisDestroy(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
