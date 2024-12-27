@@ -26,11 +26,11 @@ type DokkuGenericService struct {
 	// RootPassword string
 	// CustomEnv    string
 	Stopped bool
+	Exposed string
 
 	CmdName string
 }
 
-//
 func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	d.SetId(s.Id)
 	d.Set("name", s.Name)
@@ -40,13 +40,13 @@ func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	// d.Set("root_password", s.RootPassword)
 	// d.Set("custom_env", s.CustomEnv)
 	d.Set("stopped", s.Stopped)
+	d.Set("expose_on", s.Exposed)
 }
 
 func (s *DokkuGenericService) Cmd(str ...string) string {
 	return fmt.Sprintf("%s:%s", s.CmdName, strings.Join(str, " "))
 }
 
-//
 func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...string) string {
 	addAllFlags := len(flagsToAddSlice) == 0
 	flagsToAdd := sliceToLookupMap(flagsToAddSlice)
@@ -85,7 +85,6 @@ func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...strin
 	return strings.Join(flags, " ")
 }
 
-//
 func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 	serviceInfo, err := getServiceInfo(service.CmdName, service.Name, client)
 
@@ -108,6 +107,18 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 	if !service.Stopped {
 		if version, ok := serviceInfo["version"]; ok {
 			service.Image, service.ImageVersion = dockerImageAndVersion(version)
+		}
+	}
+
+	if exposedPorts, ok := serviceInfo["exposed ports"]; ok {
+		if exposedPorts != "-" {
+			port := strings.Split(exposedPorts, "->")
+			if len(port) > 1 {
+				service.Exposed = strings.TrimSpace(port[1])
+			} else {
+				// Handle the error case - either return an error or set a default
+				return fmt.Errorf("invalid port mapping format: %s", exposedPorts)
+			}
 		}
 	}
 
@@ -149,7 +160,6 @@ func getServiceInfo(service string, name string, client *goph.Client) (map[strin
 	return data, nil
 }
 
-//
 func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("%s:create %s %s", service.CmdName, service.Name, createServiceFlagStr(service)))
 
@@ -165,12 +175,22 @@ func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error
 			}
 		}
 
+		// Expose the service if necessary
+		log.Printf("expose_on set to %s", service.Exposed)
+		exposed := service.Exposed
+		if exposed != "" {
+			log.Print("Setting expose...")
+			res = run(client, fmt.Sprintf("%s:expose %s %s", service.CmdName, service.Name, exposed))
+			if res.err != nil {
+				return res.err
+			}
+		}
+
 		// Read the service to get info on image etc
 		return dokkuServiceRead(service, client)
 	}
 }
 
-//
 func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, client *goph.Client) error {
 	serviceName := d.Get("name").(string)
 	oldServiceName := d.Get("name").(string)
@@ -251,10 +271,23 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 		}
 	}
 
+	if d.HasChange("expose_on") {
+		var res SshOutput
+		exposed := d.Get("expose_on").(string)
+		if exposed == "" {
+			res = run(client, fmt.Sprintf("%s:unexpose %s", service.CmdName, service.Name))
+		} else {
+			res = run(client, fmt.Sprintf("%s:expose %s %s", service.CmdName, service.Name, exposed))
+		}
+
+		if res.err != nil {
+			return res.err
+		}
+	}
+
 	return dokkuServiceRead(service, client)
 }
 
-//
 func dokkuServiceDestroy(cmd string, serviceName string, client *goph.Client) error {
 	log.Printf("[DEBUG] running %s:destroy on %s\n", cmd, serviceName)
 	res := run(client, fmt.Sprintf("%s:destroy %s -f", cmd, serviceName))

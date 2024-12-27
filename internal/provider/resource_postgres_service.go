@@ -54,6 +54,12 @@ func resourcePostgresService() *schema.Resource {
 				Computed: true,
 				Description: "Whether the Postgres service is stopped. When true, the database service will not be running but data will be preserved.",
 			},
+			"expose_on": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
+				// TODO validator?
+			},
 			// TODO backup related stuff
 			// "backup_auth_access_key": {
 			// 	Type:     schema.TypeString,
@@ -85,7 +91,6 @@ func resourcePgCreate(ctx context.Context, d *schema.ResourceData, m interface{}
 	return diags
 }
 
-//
 func resourcePgRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -110,7 +115,6 @@ func resourcePgRead(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	return diags
 }
 
-//
 func resourcePgUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -128,7 +132,6 @@ func resourcePgUpdate(ctx context.Context, d *schema.ResourceData, m interface{}
 	return diags
 }
 
-//
 func resourcePgDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 

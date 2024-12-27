@@ -65,7 +65,6 @@ func resourceChCreate(ctx context.Context, d *schema.ResourceData, m interface{}
 	return diags
 }
 
-//
 func resourceChRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -89,7 +88,6 @@ func resourceChRead(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	return diags
 }
 
-//
 func resourceChUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -113,7 +111,6 @@ func resourceChUpdate(ctx context.Context, d *schema.ResourceData, m interface{}
 	return diags
 }
 
-//
 func resourceChDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
