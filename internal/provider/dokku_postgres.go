@@ -5,12 +5,10 @@ import (
 	"github.com/melbahja/goph"
 )
 
-//
 type DokkuPostgresService struct {
 	DokkuGenericService
 }
 
-//
 func NewDokkuPostgresService(name string) *DokkuPostgresService {
 	return &DokkuPostgresService{
 		DokkuGenericService: DokkuGenericService{
@@ -20,7 +18,6 @@ func NewDokkuPostgresService(name string) *DokkuPostgresService {
 	}
 }
 
-//
 func NewDokkuPostgresServiceFromResourceData(d *schema.ResourceData) *DokkuPostgresService {
 	return &DokkuPostgresService{
 		DokkuGenericService: DokkuGenericService{
@@ -31,6 +28,7 @@ func NewDokkuPostgresServiceFromResourceData(d *schema.ResourceData) *DokkuPostg
 			// RootPassword: d.Get("root_password").(string),
 			// CustomEnv:    d.Get("custom_env").(string),
 			Stopped: d.Get("stopped").(bool),
+			Exposed: d.Get("exposed_on").(string),
 
 			CmdName: "postgres",
 		},

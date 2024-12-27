@@ -5,12 +5,10 @@ import (
 	"github.com/melbahja/goph"
 )
 
-//
 type DokkuRedisService struct {
 	DokkuGenericService
 }
 
-//
 func NewDokkuRedisService(name string) *DokkuRedisService {
 	return &DokkuRedisService{
 		DokkuGenericService: DokkuGenericService{
@@ -20,7 +18,6 @@ func NewDokkuRedisService(name string) *DokkuRedisService {
 	}
 }
 
-//
 func NewDokkuRedisServiceFromResourceData(d *schema.ResourceData) *DokkuRedisService {
 	isStoppedI, isStoppedSet := d.GetOk("stopped")
 
@@ -37,28 +34,25 @@ func NewDokkuRedisServiceFromResourceData(d *schema.ResourceData) *DokkuRedisSer
 			Image:        d.Get("image").(string),
 			ImageVersion: d.Get("image_version").(string),
 			Stopped:      isStopped,
+			Exposed:      d.Get("exposed_on").(string),
 
 			CmdName: "redis",
 		},
 	}
 }
 
-//
 func dokkuRedisRead(redis *DokkuRedisService, client *goph.Client) error {
 	return dokkuServiceRead(&redis.DokkuGenericService, client)
 }
 
-//
 func dokkuRedisCreate(redis *DokkuRedisService, client *goph.Client) error {
 	return dokkuServiceCreate(&redis.DokkuGenericService, client)
 }
 
-//
 func dokkuRedisUpdate(redis *DokkuRedisService, d *schema.ResourceData, client *goph.Client) error {
 	return dokkuServiceUpdate(&redis.DokkuGenericService, d, client)
 }
 
-//
 func dokkuRedisDestroy(redis *DokkuRedisService, client *goph.Client) error {
 	return dokkuServiceDestroy(redis.CmdName, redis.Name, client)
 }

@@ -23,7 +23,10 @@ resource "dokku_postgres_service" "test" {
 	name = "%s"
 }
 `, serviceName),
-				Check: resource.ComposeTestCheckFunc(),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgExposed("dokku_postgres_service.test", false, ""),
+				),
 			},
 		},
 	})
@@ -106,6 +109,40 @@ resource "dokku_postgres_service" "test" {
 					testAccCheckPgServiceExists("dokku_postgres_service.test"),
 				),
 			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+	exposed_on = "0.0.0.0:8585"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgExposed("dokku_postgres_service.test", true, "0.0.0.0:8585"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_postgres_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckPgServiceExists("dokku_postgres_service.test"),
+					testAccCheckPgExposed("dokku_postgres_service.test", false, ""),
+				),
+			},
+		},
+	})
+}
+
+func TestAccPostgresExposedOnCreate(t *testing.T) {
+	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testPgServiceDestroy,
+		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
 resource "dokku_postgres_service" "test" {

@@ -169,6 +169,17 @@ func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error
 			}
 		}
 
+		// Expose the service if necessary
+		log.Printf("exposed_on set to %s", service.Exposed)
+		exposed := service.Exposed
+		if exposed != "" {
+			log.Print("Setting expose...")
+			res = run(client, fmt.Sprintf("%s:expose %s %s", service.CmdName, service.Name, exposed))
+			if res.err != nil {
+				return res.err
+			}
+		}
+
 		// Read the service to get info on image etc
 		return dokkuServiceRead(service, client)
 	}

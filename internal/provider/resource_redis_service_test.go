@@ -55,6 +55,50 @@ resource "dokku_redis_service" "test" {
 	})
 }
 
+func TestAccRedisExposedOn(t *testing.T) {
+	serviceName := fmt.Sprintf("redis-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testRedisServiceDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_redis_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedisServiceExists("dokku_redis_service.test"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_redis_service" "test" {
+	name = "%s"
+	exposed_on = "0.0.0.0:8585"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedisServiceExists("dokku_redis_service.test"),
+					testAccCheckRedisExposed("dokku_redis_service.test", true, "0.0.0.0:8585"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_redis_service" "test" {
+	name = "%s"
+}
+`, serviceName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRedisServiceExists("dokku_redis_service.test"),
+					testAccCheckRedisExposed("dokku_redis_service.test", false, ""),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckRedisServiceExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -111,6 +155,41 @@ func testAccCheckRedisImageAndVersion(n string, image string, version string) re
 
 		if service.ImageVersion != version {
 			return fmt.Errorf("Image version expected to be %s, got %s", version, service.ImageVersion)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckRedisExposed(n string, isExposed bool, host string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("Service ID not present")
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		service := NewDokkuRedisService(rs.Primary.ID)
+		err := dokkuRedisRead(service, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error reading redis resource %s", rs.Primary.ID)
+		}
+
+		if isExposed {
+			if service.Exposed != host {
+				return fmt.Errorf("redis was not exposed as expected, returned %s", service.Exposed)
+			}
+		} else {
+			if service.Exposed != "" {
+				return fmt.Errorf("Service was exposed unexpectedly, returned %s", service.Exposed)
+			}
 		}
 
 		return nil
