@@ -28,7 +28,7 @@ func NewDokkuPostgresServiceFromResourceData(d *schema.ResourceData) *DokkuPostg
 			// RootPassword: d.Get("root_password").(string),
 			// CustomEnv:    d.Get("custom_env").(string),
 			Stopped: d.Get("stopped").(bool),
-			Exposed: d.Get("exposed_on").(string),
+			Exposed: d.Get("expose_on").(string),
 
 			CmdName: "postgres",
 		},

@@ -25,7 +25,7 @@ func NewMysqlServiceFromResourceData(d *schema.ResourceData) *DokkuMysqlService 
 			Image:        d.Get("image").(string),
 			ImageVersion: d.Get("image_version").(string),
 			Stopped:      d.Get("stopped").(bool),
-			Exposed:      d.Get("exposed_on").(string),
+			Exposed:      d.Get("expose_on").(string),
 			CmdName:      "mysql",
 		},
 	}

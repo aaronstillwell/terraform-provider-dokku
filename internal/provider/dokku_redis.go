@@ -34,7 +34,7 @@ func NewDokkuRedisServiceFromResourceData(d *schema.ResourceData) *DokkuRedisSer
 			Image:        d.Get("image").(string),
 			ImageVersion: d.Get("image_version").(string),
 			Stopped:      isStopped,
-			Exposed:      d.Get("exposed_on").(string),
+			Exposed:      d.Get("expose_on").(string),
 
 			CmdName: "redis",
 		},

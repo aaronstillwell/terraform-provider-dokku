@@ -76,7 +76,7 @@ resource "dokku_redis_service" "test" {
 				Config: fmt.Sprintf(`
 resource "dokku_redis_service" "test" {
 	name = "%s"
-	exposed_on = "0.0.0.0:8585"
+	expose_on = "0.0.0.0:8585"
 }
 `, serviceName),
 				Check: resource.ComposeTestCheckFunc(

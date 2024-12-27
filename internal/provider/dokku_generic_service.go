@@ -40,7 +40,7 @@ func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	// d.Set("root_password", s.RootPassword)
 	// d.Set("custom_env", s.CustomEnv)
 	d.Set("stopped", s.Stopped)
-	d.Set("exposed_on", s.Exposed)
+	d.Set("expose_on", s.Exposed)
 }
 
 func (s *DokkuGenericService) Cmd(str ...string) string {
@@ -170,7 +170,7 @@ func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error
 		}
 
 		// Expose the service if necessary
-		log.Printf("exposed_on set to %s", service.Exposed)
+		log.Printf("expose_on set to %s", service.Exposed)
 		exposed := service.Exposed
 		if exposed != "" {
 			log.Print("Setting expose...")
@@ -265,9 +265,9 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 		}
 	}
 
-	if d.HasChange("exposed_on") {
+	if d.HasChange("expose_on") {
 		var res SshOutput
-		exposed := d.Get("exposed_on").(string)
+		exposed := d.Get("expose_on").(string)
 		if exposed == "" {
 			res = run(client, fmt.Sprintf("%s:unexpose %s", service.CmdName, service.Name))
 		} else {
