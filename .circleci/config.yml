@@ -180,7 +180,10 @@ jobs:
 workflows:
   build:
     jobs:
-      - build
+      - build:
+          filters:
+            tags:
+              only: /^v.*/
       - install-go-deps-vm
 
       - acceptance-tests:
