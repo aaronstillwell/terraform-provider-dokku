@@ -31,12 +31,6 @@ func resourceClickhouseService() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"exposed_on": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Network address and port to expose the service on. Format is 'host:port' (e.g. '0.0.0.0:8085'). If not specified, the service remains unexposed.",
-				// TODO validator?
-			},
 		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
