@@ -1,3 +1,0 @@
-kind: Added
-body: The ability to manage whether a service is exposed via the "expose_on" attribute for postgres/mysql/redis
-time: 2024-12-25T13:13:52.471174Z

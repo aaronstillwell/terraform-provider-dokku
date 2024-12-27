@@ -18,7 +18,6 @@
 [![GitHub release](https://img.shields.io/github/v/release/aaronstillwell/terraform-provider-dokku?include_prereleases=&sort=semver)](https://github.com/aaronstillwell/terraform-provider-dokku/releases/)
 [![License](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
 
-
 This is a terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Not all configuration options are currently supported.
 
 This provider is currently tested against Dokku >= v0.30 and <= 0.35, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
@@ -40,7 +39,7 @@ terraform {
   required_providers {
     dokku = {
       source  = "aaronstillwell/dokku"
-      version = "> 0.4"
+      version = "> 0.5"
     }
   }
 }

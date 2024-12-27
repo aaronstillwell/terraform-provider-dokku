@@ -2,7 +2,7 @@ terraform {
   required_providers {
     dokku = {
       source  = "aaronstillwell/dokku"
-      version = "> 0.4"
+      version = "> 0.5"
 
       # Note: if you're building this provider locally and developing/testing with this example,
       # use the below instead.

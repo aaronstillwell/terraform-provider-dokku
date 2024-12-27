@@ -1,3 +1,0 @@
-kind: Fixed
-body: Quotes in config vars not being escaped (#7)
-time: 2024-09-18T23:31:01.316318+01:00
