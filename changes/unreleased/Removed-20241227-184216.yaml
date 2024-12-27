@@ -1,0 +1,3 @@
+kind: Removed
+body: Dokku versions < v0.30 from the range of versions tested against
+time: 2024-12-27T18:42:16.467484Z

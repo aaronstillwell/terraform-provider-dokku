@@ -179,7 +179,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	log.Printf("[DEBUG] host version %v", hostVersion)
 
-	testedVersions := ">=0.24.0 <0.35.0"
+	testedVersions := ">=0.30.0 <0.36.0"
 	testedErrMsg := fmt.Sprintf("This provider has not been tested against Dokku version %s. Tested version range: %s", string(found), testedVersions)
 
 	if err == nil {
