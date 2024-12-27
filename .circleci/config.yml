@@ -180,10 +180,7 @@ jobs:
 workflows:
   build:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /^v.*/
+      - build
       - install-go-deps-vm
 
       - acceptance-tests:
@@ -203,13 +200,8 @@ workflows:
       - build-docs:
           requires:
             - build
-          filters:
-            tags:
-              only: /^v.*/
 
       - release:
-          requires:
-            - build-docs
           context:
             - github-release
             - oss-signing-key
