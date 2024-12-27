@@ -1,11 +1,14 @@
 terraform {
   required_providers {
     dokku = {
-      # Do not copy/paste this block - it's for building this example in local
-      # development. See README.md for how to install the provider from the
-      # terraform registry.
-      version = "0.1"
-      source  = "hashicorp.com/aaronstillwell/dokku"
+      source  = "aaronstillwell/dokku"
+      version = "> 0.4"
+
+      # Note: if you're building this provider locally and developing/testing with this example,
+      # use the below instead.
+      #
+      # source  = "hashicorp.com/aaronstillwell/dokku"
+      # version = "0.1"
     }
   }
 }
@@ -19,8 +22,9 @@ provider "dokku" {
   # forced command - the provider will not attempt to explicitly specify the
   # dokku binary over SSH.
   #
-  # This must be an absolute path to the key.
+  # This can be an absolute path OR just contain the SSH key inline.
   ssh_cert = "/home/user/dokku-vagrant"
+  #ssh_passphrase = "optional"
 }
 
 # Creates a dokku app

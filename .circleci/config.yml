@@ -137,6 +137,23 @@ jobs:
       - store_test_results: # upload test results for display in Test Summary
           path: /tmp/test-results
 
+  build-docs:
+    docker:
+      - image: cimg/go:1.23
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install tfplugindocs
+          command: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+      - run:
+          name: Generate docs
+          command: tfplugindocs generate --provider-name terraform-provider-dokku
+      - persist_to_workspace:
+          root: .
+          paths:
+            - docs/
+
   release:
     parameters:
       dry-run:
@@ -146,6 +163,8 @@ jobs:
     resource_class: large
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - run:
           name: Import signing key
           command: |
@@ -183,7 +202,16 @@ workflows:
             - build
             - install-go-deps-vm
 
+      - build-docs:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+
       - release:
+          requires:
+            - build-docs
           context:
             - github-release
             - oss-signing-key
