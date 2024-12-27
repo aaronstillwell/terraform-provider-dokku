@@ -42,7 +42,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("DOKKU_SSH_CERT", nil),
-				Description: "The path to the SSH private key for connecting to your Dokku server. Can be set via DOKKU_SSH_CERT environment variable.",
+				Description: "Either a path to the SSH private key for connecting to your Dokku server OR the source for an SSH key directly. Can be set via DOKKU_SSH_CERT environment variable.",
 			},
 			"ssh_passphrase": {
 				Type:        schema.TypeString,
