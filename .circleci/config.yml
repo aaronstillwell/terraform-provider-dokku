@@ -173,9 +173,18 @@ jobs:
             echo $OSS_SIGNING_PASS | gpg -a --detach-sign --passphrase-fd 0 --pinentry-mode loopback /tmp/.circleci-gpg-setup
       - goreleaser/install:
           version: "2.6.1"
-      - run:
-          command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
-          no_output_timeout: 30m
+      - when:
+          condition: << parameters.dry-run >>
+          steps:
+          - run:
+              command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md --skip=publish
+              no_output_timeout: 30m
+      - unless:
+          condition: << parameters.dry-run >>
+          steps:
+          - run:
+              command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
+              no_output_timeout: 30m
 
 workflows:
   build:
