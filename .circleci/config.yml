@@ -158,7 +158,7 @@ jobs:
     parameters:
       dry-run:
         type: boolean
-        default: false
+        default: true
     executor: default
     resource_class: large
     steps:
@@ -172,10 +172,19 @@ jobs:
             touch /tmp/.circleci-gpg-setup
             echo $OSS_SIGNING_PASS | gpg -a --detach-sign --passphrase-fd 0 --pinentry-mode loopback /tmp/.circleci-gpg-setup
       - goreleaser/install:
-          version: "0.178.0"
-      - run:
-          command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
-          no_output_timeout: 30m
+          version: "2.6.1"
+      - when:
+          condition: << parameters.dry-run >>
+          steps:
+          - run:
+              command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md --skip=publish
+              no_output_timeout: 30m
+      - unless:
+          condition: << parameters.dry-run >>
+          steps:
+          - run:
+              command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
+              no_output_timeout: 30m
 
 workflows:
   build:
@@ -202,6 +211,7 @@ workflows:
             - build
 
       - release:
+          dry-run: false
           context:
             - github-release
             - oss-signing-key
