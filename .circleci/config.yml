@@ -158,7 +158,7 @@ jobs:
     parameters:
       dry-run:
         type: boolean
-        default: false
+        default: true
     executor: default
     resource_class: large
     steps:
@@ -211,6 +211,7 @@ workflows:
             - build
 
       - release:
+          dry-run: false
           context:
             - github-release
             - oss-signing-key
