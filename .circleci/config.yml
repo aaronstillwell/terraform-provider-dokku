@@ -172,7 +172,7 @@ jobs:
             touch /tmp/.circleci-gpg-setup
             echo $OSS_SIGNING_PASS | gpg -a --detach-sign --passphrase-fd 0 --pinentry-mode loopback /tmp/.circleci-gpg-setup
       - goreleaser/install:
-          version: "0.178.0"
+          version: "2.6.1"
       - run:
           command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
           no_output_timeout: 30m
