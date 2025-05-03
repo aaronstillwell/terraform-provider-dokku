@@ -43,7 +43,7 @@ func resourceMongodbServiceLink() *schema.Resource {
 	}
 }
 
-const mongodbServiceCmd = "mongodb"
+const mongodbServiceCmd = "mongo"
 
 func resourceMongodbServiceLinkCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	err := serviceLinkCreate(d, mongodbServiceCmd, m.(*goph.Client))
