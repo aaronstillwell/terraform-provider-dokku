@@ -158,12 +158,12 @@ resource "dokku_mongodb_service" "test" {
 				Config: fmt.Sprintf(`
 resource "dokku_mongodb_service" "test" {
 	name = "%s"
-	expose_on = "0.0.0.0:27017"
+	expose_on = "0.0.0.0:27017 0.0.0.0:27018 0.0.0.0:27019 0.0.0.0:28017"
 }
 `, serviceName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMongodbServiceExists("dokku_mongodb_service.test"),
-					testAccCheckMongodbExposed("dokku_mongodb_service.test", true, "0.0.0.0:27017"),
+					testAccCheckMongodbExposed("dokku_mongodb_service.test", true, "0.0.0.0:27017 0.0.0.0:27018 0.0.0.0:27019 0.0.0.0:28017"),
 				),
 			},
 			{
@@ -192,12 +192,12 @@ func TestAccMongodbExposedOnCreate(t *testing.T) {
 				Config: fmt.Sprintf(`
 resource "dokku_mongodb_service" "test" {
 	name = "%s"
-	expose_on = "0.0.0.0:27017"
+	expose_on = "0.0.0.0:27017 0.0.0.0:27018 0.0.0.0:27019 0.0.0.0:28017"
 }
 `, serviceName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMongodbServiceExists("dokku_mongodb_service.test"),
-					testAccCheckMongodbExposed("dokku_mongodb_service.test", true, "0.0.0.0:27017"),
+					testAccCheckMongodbExposed("dokku_mongodb_service.test", true, "0.0.0.0:27017 0.0.0.0:27018 0.0.0.0:27019 0.0.0.0:28017"),
 				),
 			},
 			{
