@@ -13,7 +13,7 @@ func NewDokkuMongodbService(name string) *DokkuMongodbService {
 	return &DokkuMongodbService{
 		DokkuGenericService: DokkuGenericService{
 			Name:    name,
-			CmdName: "mongodb",
+			CmdName: "mongo",
 		},
 	}
 }
