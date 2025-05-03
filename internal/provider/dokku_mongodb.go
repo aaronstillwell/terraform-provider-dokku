@@ -36,7 +36,7 @@ func NewDokkuMongodbServiceFromResourceData(d *schema.ResourceData) *DokkuMongod
 			Stopped:      isStopped,
 			Exposed:      d.Get("expose_on").(string),
 
-			CmdName: "mongodb",
+			CmdName: "mongo",
 		},
 	}
 }
