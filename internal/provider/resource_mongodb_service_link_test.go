@@ -135,7 +135,7 @@ func testAccCheckMongodbServiceLinkExists(n string) resource.TestCheckFunc {
 			d.Set("query_string", queryString)
 		}
 
-		err := serviceLinkRead(d, "mongodb", sshClient)
+		err := serviceLinkRead(d, "mongo", sshClient)
 
 		if err != nil {
 			return fmt.Errorf("Error reading mongodb service link %s -> %s: %v", service, app, err)
@@ -168,7 +168,7 @@ func testMongodbServiceLinkDestroy(s *terraform.State) error {
 			d.Set("query_string", queryString)
 		}
 
-		err := serviceLinkRead(d, "mongodb", sshClient)
+		err := serviceLinkRead(d, "mongo", sshClient)
 
 		if err == nil {
 			return fmt.Errorf("Dokku mongodb service link %s -> %s should not exist", service, app)
