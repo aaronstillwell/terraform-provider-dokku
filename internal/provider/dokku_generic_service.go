@@ -26,7 +26,7 @@ type DokkuGenericService struct {
 	// RootPassword string
 	// CustomEnv    string
 	Stopped bool
-	Exposed string
+	Exposed []string
 
 	CmdName string
 }
@@ -40,7 +40,7 @@ func (s *DokkuGenericService) setOnResourceData(d *schema.ResourceData) {
 	// d.Set("root_password", s.RootPassword)
 	// d.Set("custom_env", s.CustomEnv)
 	d.Set("stopped", s.Stopped)
-	d.Set("expose_on", s.Exposed)
+	d.Set("expose_on", s.buildExposedPortsString())
 }
 
 func (s *DokkuGenericService) Cmd(str ...string) string {
@@ -85,6 +85,23 @@ func createServiceFlagStr(service *DokkuGenericService, flagsToAddSlice ...strin
 	return strings.Join(flags, " ")
 }
 
+func parseExposedPorts(exposedPorts string) ([]string, error) {
+	if exposedPorts == "-" {
+		return nil, nil
+	}
+
+	ports := strings.Split(exposedPorts, "->")
+	if len(ports) <= 1 {
+		return nil, fmt.Errorf("invalid port mapping format: %s", exposedPorts)
+	}
+
+	result := make([]string, 0)
+	for i := 1; i < len(ports); i += 2 {
+		result = append(result, strings.TrimSpace(ports[i]))
+	}
+	return result, nil
+}
+
 func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 	serviceInfo, err := getServiceInfo(service.CmdName, service.Name, client)
 
@@ -111,15 +128,11 @@ func dokkuServiceRead(service *DokkuGenericService, client *goph.Client) error {
 	}
 
 	if exposedPorts, ok := serviceInfo["exposed ports"]; ok {
-		if exposedPorts != "-" {
-			port := strings.Split(exposedPorts, "->")
-			if len(port) > 1 {
-				service.Exposed = strings.TrimSpace(port[1])
-			} else {
-				// Handle the error case - either return an error or set a default
-				return fmt.Errorf("invalid port mapping format: %s", exposedPorts)
-			}
+		parsedPorts, err := parseExposedPorts(exposedPorts)
+		if err != nil {
+			return err
 		}
+		service.Exposed = parsedPorts
 	}
 
 	return nil
@@ -160,6 +173,10 @@ func getServiceInfo(service string, name string, client *goph.Client) (map[strin
 	return data, nil
 }
 
+func (s *DokkuGenericService) buildExposedPortsString() string {
+	return strings.Join(s.Exposed, " ")
+}
+
 func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("%s:create %s %s", service.CmdName, service.Name, createServiceFlagStr(service)))
 
@@ -176,11 +193,13 @@ func dokkuServiceCreate(service *DokkuGenericService, client *goph.Client) error
 		}
 
 		// Expose the service if necessary
-		log.Printf("expose_on set to %s", service.Exposed)
-		exposed := service.Exposed
-		if exposed != "" {
-			log.Print("Setting expose...")
-			res = run(client, fmt.Sprintf("%s:expose %s %s", service.CmdName, service.Name, exposed))
+		log.Printf("[DEBUG] expose_on set to %v", service.Exposed)
+		// Note that we're checking here that service.Exposed isn't simply []string{""} - this is what
+		// strings.Split(d.Get("expose_on").(string), " ") would return by default on an empty string
+		if len(service.Exposed) > 0 && !(len(service.Exposed) == 1 && service.Exposed[0] == "") {
+			log.Printf("[DEBUG] service.Exposed length %d", len(service.Exposed))
+			log.Print("[DEBUG] Setting expose...")
+			res = run(client, fmt.Sprintf("%s:expose %s %s", service.CmdName, service.Name, service.buildExposedPortsString()))
 			if res.err != nil {
 				return res.err
 			}

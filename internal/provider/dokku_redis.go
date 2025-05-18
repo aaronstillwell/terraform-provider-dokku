@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/melbahja/goph"
 )
@@ -34,7 +36,7 @@ func NewDokkuRedisServiceFromResourceData(d *schema.ResourceData) *DokkuRedisSer
 			Image:        d.Get("image").(string),
 			ImageVersion: d.Get("image_version").(string),
 			Stopped:      isStopped,
-			Exposed:      d.Get("expose_on").(string),
+			Exposed:      strings.Split(d.Get("expose_on").(string), " "),
 
 			CmdName: "redis",
 		},

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -367,11 +368,11 @@ func testAccCheckPgExposed(n string, isExposed bool, host string) resource.TestC
 		}
 
 		if isExposed {
-			if service.Exposed != host {
-				return fmt.Errorf("pg was not exposed as expected, returned %s", service.Exposed)
+			if len(service.Exposed) != 1 || !slices.Contains(service.Exposed, host) {
+				return fmt.Errorf("mysql was not exposed as expected, returned %s", service.Exposed)
 			}
 		} else {
-			if service.Exposed != "" {
+			if service.Exposed != nil {
 				return fmt.Errorf("Service was exposed unexpectedly, returned %s", service.Exposed)
 			}
 		}
