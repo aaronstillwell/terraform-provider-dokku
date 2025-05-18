@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/melbahja/goph"
 )
@@ -28,7 +30,7 @@ func NewDokkuPostgresServiceFromResourceData(d *schema.ResourceData) *DokkuPostg
 			// RootPassword: d.Get("root_password").(string),
 			// CustomEnv:    d.Get("custom_env").(string),
 			Stopped: d.Get("stopped").(bool),
-			Exposed: d.Get("expose_on").(string),
+			Exposed: strings.Split(d.Get("expose_on").(string), " "),
 
 			CmdName: "postgres",
 		},

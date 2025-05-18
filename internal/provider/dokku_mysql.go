@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/melbahja/goph"
 )
@@ -25,7 +27,7 @@ func NewMysqlServiceFromResourceData(d *schema.ResourceData) *DokkuMysqlService 
 			Image:        d.Get("image").(string),
 			ImageVersion: d.Get("image_version").(string),
 			Stopped:      d.Get("stopped").(bool),
-			Exposed:      d.Get("expose_on").(string),
+			Exposed:      strings.Split(d.Get("expose_on").(string), " "),
 			CmdName:      "mysql",
 		},
 	}
