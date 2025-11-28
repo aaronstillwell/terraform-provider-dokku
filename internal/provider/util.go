@@ -5,17 +5,15 @@ import (
 	"strings"
 )
 
-//
 func interfaceSliceToStrSlice(list []interface{}) []string {
 	slice := make([]string, len(list))
 
-	for _, d := range list {
-		slice = append(slice, d.(string))
+	for i, d := range list {
+		slice[i] = d.(string)
 	}
 	return slice
 }
 
-//
 func mapOfInterfacesToMapOfStrings(m map[string]interface{}) map[string]string {
 	newMap := make(map[string]string, len(m))
 
@@ -57,7 +55,6 @@ func calculateMissingStrings(slice1 []string, slice2 []string) []string {
 	return missing
 }
 
-//
 func sliceToLookupMap(slice []string) map[string]struct{} {
 	m := make(map[string]struct{})
 	for _, str := range slice {
@@ -66,13 +63,11 @@ func sliceToLookupMap(slice []string) map[string]struct{} {
 	return m
 }
 
-//
 func dockerImageAndVersion(str string) (string, string) {
 	parts := strings.Split(str, ":")
 	return parts[0], parts[1]
 }
 
-//
 func tmpResourceName(length int) string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
