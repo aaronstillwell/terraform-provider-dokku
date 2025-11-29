@@ -5,6 +5,7 @@ go 1.23
 require (
 	al.essio.dev/pkg/shellescape v1.5.0
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/google/go-cmp v0.5.7
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.10.1
 	github.com/melbahja/goph v1.4.0
 	golang.org/x/crypto v0.31.0
@@ -17,7 +18,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-checkpoint v0.5.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
