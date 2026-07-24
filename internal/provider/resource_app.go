@@ -12,7 +12,7 @@ import (
 
 func resourceApp() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, and port mapping.",
+		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, and deploying from a Docker image via `from_image`.",
 		CreateContext: appCreate,
 		ReadContext:   appRead,
 		UpdateContext: appUpdate,
@@ -88,6 +88,12 @@ func resourceApp() *schema.Resource {
 				Default:      "::",
 				ValidateFunc: validation.IsIPv6Address,
 				Description: "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
+			},
+			"from_image": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "Docker image to deploy the app from via `git:from-image` (e.g. `posthog/posthog:release-1.33.0`). When set, the app is deployed from this image. Private registries require prior `registry:login` on the Dokku host.",
 			},
 		},
 		Importer: &schema.ResourceImporter{

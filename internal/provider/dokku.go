@@ -23,6 +23,8 @@ type DokkuApp struct {
 	Ports                []string
 	NginxBindAddressIpv4 string
 	NginxBindAddressIpv6 string
+	// Docker image used to deploy the app via git:from-image
+	FromImage string
 }
 
 //
@@ -48,6 +50,7 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 
 	d.Set("nginx_bind_address_ipv4", app.NginxBindAddressIpv4)
 	d.Set("nginx_bind_address_ipv6", app.NginxBindAddressIpv6)
+	d.Set("from_image", app.FromImage)
 }
 
 // Leave alone config vars that are set outside of terraform. This is one way
@@ -126,6 +129,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		Ports:                ports,
 		NginxBindAddressIpv4: d.Get("nginx_bind_address_ipv4").(string),
 		NginxBindAddressIpv6: d.Get("nginx_bind_address_ipv6").(string),
+		FromImage:            d.Get("from_image").(string),
 	}
 }
 
@@ -178,6 +182,12 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	}
 	app.NginxBindAddressIpv4 = nginxReport.BindAddressIpv4
 	app.NginxBindAddressIpv6 = nginxReport.BindAddressIpv6
+
+	fromImage, err := readAppFromImage(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.FromImage = fromImage
 
 	return app, nil
 }
@@ -384,6 +394,13 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 
 	err = dokkuAppNginxOptSet(app.Name, "bind-address-ipv6", app.NginxBindAddressIpv6, client)
 
+	if err != nil {
+		return err
+	}
+
+	// Deploy from image last so config, domains, ports, etc. are in place first
+	err = dokkuAppFromImage(app.Name, app.FromImage, client)
+
 	return err
 }
 
@@ -461,6 +478,33 @@ func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error
 func dokkuAppNginxOptSet(appName string, property string, value string, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("nginx:set %s %s %s", appName, property, value))
 	return res.err
+}
+
+// Deploy (or re-deploy) an app from a Docker image via git:from-image.
+// No-op when image is empty.
+func dokkuAppFromImage(appName string, image string, client *goph.Client) error {
+	if image == "" {
+		return nil
+	}
+
+	log.Printf("[DEBUG] deploying app %s from image %s\n", appName, image)
+	res := run(client, fmt.Sprintf("git:from-image %s %s", appName, image))
+	return res.err
+}
+
+// Read the source image for an app from git:report.
+func readAppFromImage(appName string, client *goph.Client) (string, error) {
+	res := run(client, fmt.Sprintf("git:report %s --git-source-image", appName))
+
+	if res.err != nil {
+		// Older dokku or apps without git setup may not support this; treat as unset
+		if res.status > 0 {
+			return "", nil
+		}
+		return "", res.err
+	}
+
+	return strings.TrimSpace(res.stdout), nil
 }
 
 //
@@ -596,6 +640,14 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 	if d.HasChange("nginx_bind_address_ipv6") {
 		_, newBindAddr := d.GetChange("nginx_bind_address_ipv6")
 		dokkuAppNginxOptSet(appName, "bind-address-ipv6", newBindAddr.(string), client)
+	}
+
+	if d.HasChange("from_image") {
+		_, newImage := d.GetChange("from_image")
+		err := dokkuAppFromImage(appName, newImage.(string), client)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
