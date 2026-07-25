@@ -12,7 +12,7 @@ import (
 
 func resourceApp() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, and port mapping.",
+		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, and Docker networks.",
 		CreateContext: appCreate,
 		ReadContext:   appRead,
 		UpdateContext: appUpdate,
@@ -88,6 +88,31 @@ func resourceApp() *schema.Resource {
 				Default:      "::",
 				ValidateFunc: validation.IsIPv6Address,
 				Description: "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
+			},
+			"networks": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Description: "Docker network attachment for the app. Creates the network if missing. See https://dokku.com/docs/networking/network/",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"attach_post_create": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Network attached after container create (before start). Enables DNS between apps as `<app>.web`.",
+						},
+						"attach_post_deploy": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Network attached after a successful deploy.",
+						},
+						"initial_network": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Network used as the container's initial/primary network.",
+						},
+					},
+				},
 			},
 		},
 		Importer: &schema.ResourceImporter{
