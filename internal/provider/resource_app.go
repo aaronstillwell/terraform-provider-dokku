@@ -12,7 +12,7 @@ import (
 
 func resourceApp() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, and deploying from a Docker image via `from_image`.",
+		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, Docker networks, and deploying from a Docker image via `from_image`.",
 		CreateContext: appCreate,
 		ReadContext:   appRead,
 		UpdateContext: appUpdate,
@@ -94,6 +94,31 @@ func resourceApp() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 				Description: "Docker image to deploy the app from via `git:from-image` (e.g. `posthog/posthog:release-1.33.0`). When set, the app is deployed from this image. Private registries require prior `registry:login` on the Dokku host.",
+			},
+			"networks": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Description: "Docker network attachment for the app. Creates the network if missing. See https://dokku.com/docs/networking/network/",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"attach_post_create": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Network attached after container create (before start). Enables DNS between apps as `<app>.web`.",
+						},
+						"attach_post_deploy": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Network attached after a successful deploy.",
+						},
+						"initial_network": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Network used as the container's initial/primary network.",
+						},
+					},
+				},
 			},
 		},
 		Importer: &schema.ResourceImporter{

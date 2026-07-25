@@ -11,6 +11,17 @@ import (
 	"al.essio.dev/pkg/shellescape"
 )
 
+// DokkuAppNetworks mirrors dokku network:set properties for an app.
+type DokkuAppNetworks struct {
+	AttachPostCreate string
+	AttachPostDeploy string
+	InitialNetwork   string
+}
+
+func (n DokkuAppNetworks) IsEmpty() bool {
+	return n.AttachPostCreate == "" && n.AttachPostDeploy == "" && n.InitialNetwork == ""
+}
+
 //
 type DokkuApp struct {
 	Id         string
@@ -25,6 +36,7 @@ type DokkuApp struct {
 	NginxBindAddressIpv6 string
 	// Docker image used to deploy the app via git:from-image
 	FromImage string
+	Networks  DokkuAppNetworks
 }
 
 //
@@ -51,6 +63,19 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	d.Set("nginx_bind_address_ipv4", app.NginxBindAddressIpv4)
 	d.Set("nginx_bind_address_ipv6", app.NginxBindAddressIpv6)
 	d.Set("from_image", app.FromImage)
+
+	// Only manage networks when present in config (same idea as config_vars/ports)
+	if _, ok := d.GetOk("networks"); ok {
+		d.Set("networks", []interface{}{
+			map[string]interface{}{
+				"attach_post_create": app.Networks.AttachPostCreate,
+				"attach_post_deploy": app.Networks.AttachPostDeploy,
+				"initial_network":    app.Networks.InitialNetwork,
+			},
+		})
+	} else {
+		d.Set("networks", nil)
+	}
 }
 
 // Leave alone config vars that are set outside of terraform. This is one way
@@ -130,7 +155,33 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		NginxBindAddressIpv4: d.Get("nginx_bind_address_ipv4").(string),
 		NginxBindAddressIpv6: d.Get("nginx_bind_address_ipv6").(string),
 		FromImage:            d.Get("from_image").(string),
+		Networks:             networksFromResourceData(d),
 	}
+}
+
+func networksFromResourceData(d *schema.ResourceData) DokkuAppNetworks {
+	n := DokkuAppNetworks{}
+	raw, ok := d.GetOk("networks")
+	if !ok {
+		return n
+	}
+
+	list := raw.([]interface{})
+	if len(list) == 0 || list[0] == nil {
+		return n
+	}
+
+	m := list[0].(map[string]interface{})
+	if v, ok := m["attach_post_create"].(string); ok {
+		n.AttachPostCreate = v
+	}
+	if v, ok := m["attach_post_deploy"].(string); ok {
+		n.AttachPostDeploy = v
+	}
+	if v, ok := m["initial_network"].(string); ok {
+		n.InitialNetwork = v
+	}
+	return n
 }
 
 //
@@ -188,6 +239,12 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 		return nil, err
 	}
 	app.FromImage = fromImage
+
+	networks, err := readAppNetworks(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.Networks = networks
 
 	return app, nil
 }
@@ -398,7 +455,13 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 		return err
 	}
 
-	// Deploy from image last so config, domains, ports, etc. are in place first
+	// Networks before deploy so the first container attaches correctly
+	err = dokkuAppNetworksApply(app.Name, DokkuAppNetworks{}, app.Networks, client, false)
+	if err != nil {
+		return err
+	}
+
+	// Deploy from image last so config, domains, ports, networks, etc. are in place first
 	err = dokkuAppFromImage(app.Name, app.FromImage, client)
 
 	return err
@@ -650,5 +713,138 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		}
 	}
 
+	if d.HasChange("networks") {
+		oldN := networksFromChange(d, true)
+		newN := networksFromChange(d, false)
+		// Rebuild when network changes on an already-deployed app (from_image
+		// redeploy above already recreates containers when that also changed).
+		needsRebuild := !d.HasChange("from_image")
+		err := dokkuAppNetworksApply(appName, oldN, newN, client, needsRebuild)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func networksFromChange(d *schema.ResourceData, old bool) DokkuAppNetworks {
+	var raw interface{}
+	if old {
+		raw, _ = d.GetChange("networks")
+	} else {
+		_, raw = d.GetChange("networks")
+	}
+
+	n := DokkuAppNetworks{}
+	list, ok := raw.([]interface{})
+	if !ok || len(list) == 0 || list[0] == nil {
+		return n
+	}
+	m := list[0].(map[string]interface{})
+	if v, ok := m["attach_post_create"].(string); ok {
+		n.AttachPostCreate = v
+	}
+	if v, ok := m["attach_post_deploy"].(string); ok {
+		n.AttachPostDeploy = v
+	}
+	if v, ok := m["initial_network"].(string); ok {
+		n.InitialNetwork = v
+	}
+	return n
+}
+
+// Apply network properties for an app. Creates missing Docker networks.
+// When rebuild is true, runs ps:rebuild so attachment takes effect on running apps.
+func dokkuAppNetworksApply(appName string, oldN, newN DokkuAppNetworks, client *goph.Client, rebuild bool) error {
+	type prop struct {
+		name string
+		old  string
+		new  string
+	}
+	props := []prop{
+		{"attach-post-create", oldN.AttachPostCreate, newN.AttachPostCreate},
+		{"attach-post-deploy", oldN.AttachPostDeploy, newN.AttachPostDeploy},
+		{"initial-network", oldN.InitialNetwork, newN.InitialNetwork},
+	}
+
+	changed := false
+	for _, p := range props {
+		if p.old == p.new {
+			continue
+		}
+		changed = true
+		if err := dokkuAppNetworkSet(appName, p.name, p.new, client); err != nil {
+			return err
+		}
+	}
+
+	if changed && rebuild {
+		res := run(client, fmt.Sprintf("ps:rebuild %s", appName))
+		if res.err != nil {
+			// status > 0: app may never have been deployed — property is set for next deploy
+			if res.status > 0 {
+				log.Printf("[DEBUG] ps:rebuild %s returned status %d: %v (may be undeployed)\n", appName, res.status, res.err)
+			} else {
+				return res.err
+			}
+		}
+	}
+
+	return nil
+}
+
+func dokkuAppNetworkSet(appName string, property string, networkName string, client *goph.Client) error {
+	if networkName != "" {
+		if err := dokkuNetworkEnsure(networkName, client); err != nil {
+			return err
+		}
+		res := run(client, fmt.Sprintf("network:set %s %s %s", appName, property, networkName))
+		return res.err
+	}
+
+	// Clear the property
+	res := run(client, fmt.Sprintf("network:set %s %s", appName, property))
+	return res.err
+}
+
+func dokkuNetworkEnsure(name string, client *goph.Client) error {
+	res := run(client, fmt.Sprintf("network:exists %s", name))
+	if res.err == nil && res.status == 0 {
+		return nil
+	}
+	log.Printf("[DEBUG] creating dokku network %s\n", name)
+	res = run(client, fmt.Sprintf("network:create %s", name))
+	return res.err
+}
+
+func readAppNetworks(appName string, client *goph.Client) (DokkuAppNetworks, error) {
+	n := DokkuAppNetworks{}
+
+	readProp := func(flag string) (string, error) {
+		res := run(client, fmt.Sprintf("network:report %s %s", appName, flag))
+		if res.err != nil {
+			if res.status > 0 {
+				return "", nil
+			}
+			return "", res.err
+		}
+		return strings.TrimSpace(res.stdout), nil
+	}
+
+	var err error
+	n.AttachPostCreate, err = readProp("--network-attach-post-create")
+	if err != nil {
+		return n, err
+	}
+	n.AttachPostDeploy, err = readProp("--network-attach-post-deploy")
+	if err != nil {
+		return n, err
+	}
+	n.InitialNetwork, err = readProp("--network-initial-network")
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
 }
