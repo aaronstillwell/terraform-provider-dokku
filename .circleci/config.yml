@@ -174,13 +174,13 @@ jobs:
           condition: << parameters.dry-run >>
           steps:
           - run:
-              command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md --skip=publish
+              command: goreleaser --release-notes-file=changes/<< pipeline.git.tag >>.md --skip=publish
               no_output_timeout: 30m
       - unless:
           condition: << parameters.dry-run >>
           steps:
           - run:
-              command: goreleaser --release-notes=changes/<< pipeline.git.tag >>.md
+              command: goreleaser --release-notes-file=changes/<< pipeline.git.tag >>.md
               no_output_timeout: 30m
 
 workflows:
