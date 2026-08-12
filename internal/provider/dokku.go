@@ -16,13 +16,15 @@ type DokkuAppNetworks struct {
 	AttachPostCreate string
 	AttachPostDeploy string
 	InitialNetwork   string
+	// Tld is a DNS suffix for network aliases (e.g. "internal" → app.web.internal).
+	// Unlike the attach/initial fields, this is not a Docker network name.
+	Tld string
 }
 
 func (n DokkuAppNetworks) IsEmpty() bool {
-	return n.AttachPostCreate == "" && n.AttachPostDeploy == "" && n.InitialNetwork == ""
+	return n.AttachPostCreate == "" && n.AttachPostDeploy == "" && n.InitialNetwork == "" && n.Tld == ""
 }
 
-//
 type DokkuApp struct {
 	Id         string
 	Name       string
@@ -39,7 +41,6 @@ type DokkuApp struct {
 	Networks  DokkuAppNetworks
 }
 
-//
 func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 	d.SetId(app.Id)
 	d.Set("name", app.Name)
@@ -71,6 +72,7 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 				"attach_post_create": app.Networks.AttachPostCreate,
 				"attach_post_deploy": app.Networks.AttachPostDeploy,
 				"initial_network":    app.Networks.InitialNetwork,
+				"tld":                app.Networks.Tld,
 			},
 		})
 	} else {
@@ -181,10 +183,12 @@ func networksFromResourceData(d *schema.ResourceData) DokkuAppNetworks {
 	if v, ok := m["initial_network"].(string); ok {
 		n.InitialNetwork = v
 	}
+	if v, ok := m["tld"].(string); ok {
+		n.Tld = v
+	}
 	return n
 }
 
-//
 func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	res := run(client, fmt.Sprintf("apps:exists %s", appName))
 
@@ -284,7 +288,6 @@ func readAppConfig(appName string, sshClient *goph.Client) map[string]string {
 	return config
 }
 
-//
 func readAppDomains(appName string, client *goph.Client) ([]string, error) {
 	res := run(client, fmt.Sprintf("domains:report %s", appName))
 
@@ -375,7 +378,6 @@ type DokkuAppNginxReport struct {
 	BindAddressIpv6 string
 }
 
-//
 func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxReport, error) {
 	res := run(client, fmt.Sprintf("nginx:report %s", appName))
 
@@ -409,7 +411,6 @@ func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxRepor
 	return report, nil
 }
 
-//
 func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	res := run(client, fmt.Sprintf("apps:create %s", app.Name))
 
@@ -467,7 +468,6 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	return err
 }
 
-//
 func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
 	configVarStr := app.configVarsStr()
 	if len(configVarStr) == 0 {
@@ -483,7 +483,6 @@ func dokkuAppConfigVarsSet(app *DokkuApp, client *goph.Client) error {
 	return res.err
 }
 
-//
 func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.Client) error {
 	if len(varsToUnset) == 0 {
 		return nil
@@ -496,7 +495,6 @@ func dokkuAppConfigVarsUnset(app *DokkuApp, varsToUnset []string, client *goph.C
 	return res.err
 }
 
-//
 func dokkuAppDomainsAdd(app *DokkuApp, client *goph.Client) error {
 	domainStr := strings.Join(app.Domains, " ")
 
@@ -522,7 +520,6 @@ func dokkuAppBuildpackAdd(appName string, buildpacks []string, client *goph.Clie
 	return nil
 }
 
-//
 func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error {
 	for _, portRange := range ports {
 		portRange = strings.TrimSpace(portRange)
@@ -570,7 +567,6 @@ func readAppFromImage(appName string, client *goph.Client) (string, error) {
 	return strings.TrimSpace(res.stdout), nil
 }
 
-//
 func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) error {
 	if d.HasChange("name") {
 		old, _ := d.GetChange("name")
@@ -751,21 +747,27 @@ func networksFromChange(d *schema.ResourceData, old bool) DokkuAppNetworks {
 	if v, ok := m["initial_network"].(string); ok {
 		n.InitialNetwork = v
 	}
+	if v, ok := m["tld"].(string); ok {
+		n.Tld = v
+	}
 	return n
 }
 
-// Apply network properties for an app. Creates missing Docker networks.
-// When rebuild is true, runs ps:rebuild so attachment takes effect on running apps.
+// Apply network properties for an app. Creates missing Docker networks for
+// attach/initial properties (not for tld). When rebuild is true, runs
+// ps:rebuild so attachment and aliases take effect on running apps.
 func dokkuAppNetworksApply(appName string, oldN, newN DokkuAppNetworks, client *goph.Client, rebuild bool) error {
 	type prop struct {
-		name string
-		old  string
-		new  string
+		name          string
+		old           string
+		new           string
+		ensureNetwork bool
 	}
 	props := []prop{
-		{"attach-post-create", oldN.AttachPostCreate, newN.AttachPostCreate},
-		{"attach-post-deploy", oldN.AttachPostDeploy, newN.AttachPostDeploy},
-		{"initial-network", oldN.InitialNetwork, newN.InitialNetwork},
+		{"attach-post-create", oldN.AttachPostCreate, newN.AttachPostCreate, true},
+		{"attach-post-deploy", oldN.AttachPostDeploy, newN.AttachPostDeploy, true},
+		{"initial-network", oldN.InitialNetwork, newN.InitialNetwork, true},
+		{"tld", oldN.Tld, newN.Tld, false},
 	}
 
 	changed := false
@@ -774,7 +776,7 @@ func dokkuAppNetworksApply(appName string, oldN, newN DokkuAppNetworks, client *
 			continue
 		}
 		changed = true
-		if err := dokkuAppNetworkSet(appName, p.name, p.new, client); err != nil {
+		if err := dokkuAppNetworkSet(appName, p.name, p.new, p.ensureNetwork, client); err != nil {
 			return err
 		}
 	}
@@ -794,12 +796,18 @@ func dokkuAppNetworksApply(appName string, oldN, newN DokkuAppNetworks, client *
 	return nil
 }
 
-func dokkuAppNetworkSet(appName string, property string, networkName string, client *goph.Client) error {
-	if networkName != "" {
-		if err := dokkuNetworkEnsure(networkName, client); err != nil {
-			return err
+// dokkuAppNetworkSet runs network:set for a property. When ensureNetwork is
+// true and value is non-empty, creates the Docker network if missing (for
+// attach-post-create / attach-post-deploy / initial-network). Properties like
+// tld must pass ensureNetwork=false so the value is not treated as a network name.
+func dokkuAppNetworkSet(appName string, property string, value string, ensureNetwork bool, client *goph.Client) error {
+	if value != "" {
+		if ensureNetwork {
+			if err := dokkuNetworkEnsure(value, client); err != nil {
+				return err
+			}
 		}
-		res := run(client, fmt.Sprintf("network:set %s %s %s", appName, property, networkName))
+		res := run(client, fmt.Sprintf("network:set %s %s %s", appName, property, value))
 		return res.err
 	}
 
@@ -842,6 +850,10 @@ func readAppNetworks(appName string, client *goph.Client) (DokkuAppNetworks, err
 		return n, err
 	}
 	n.InitialNetwork, err = readProp("--network-initial-network")
+	if err != nil {
+		return n, err
+	}
+	n.Tld, err = readProp("--network-tld")
 	if err != nil {
 		return n, err
 	}

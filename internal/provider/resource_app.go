@@ -12,22 +12,22 @@ import (
 
 func resourceApp() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, Docker networks, and deploying from a Docker image via `from_image`.",
+		Description:   "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, Docker networks, and deploying from a Docker image via `from_image`.",
 		CreateContext: appCreate,
 		ReadContext:   appRead,
 		UpdateContext: appUpdate,
 		DeleteContext: appDelete,
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The name of the Dokku application.",
 			},
 			// TODO: locked support
 			"locked": &schema.Schema{
-				Type:     schema.TypeBool,
-				Default:  false,
-				Optional: true,
+				Type:        schema.TypeBool,
+				Default:     false,
+				Optional:    true,
 				Description: "(Not yet implemented) Whether the application is locked for deployment. When true, deploys to this application will be blocked.",
 			},
 			"config_vars": &schema.Schema{
@@ -35,8 +35,8 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional:  true,
-				Sensitive: true,
+				Optional:    true,
+				Sensitive:   true,
 				Description: "Environment variables to set for the application. These are exposed to the application at runtime.",
 			},
 			"domains": &schema.Schema{
@@ -44,8 +44,8 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional: true,
-				Computed: true,
+				Optional:    true,
+				Computed:    true,
 				Description: "List of domains to be associated with the application.",
 			},
 			"buildpacks": &schema.Schema{
@@ -53,7 +53,7 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional: true,
+				Optional:    true,
 				Description: "List of buildpacks to be used when deploying the application. These can be URLs to custom buildpacks or shorthand names for official Heroku buildpacks.",
 			},
 			"ports": &schema.Schema{
@@ -61,7 +61,7 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Optional: true,
+				Optional:    true,
 				Description: "Set of port mappings for the application. Each mapping should be in the format 'scheme:hostPort:containerPort' (e.g., 'https:443:8080').",
 				// ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 				// 	v := val.([]string)
@@ -80,14 +80,14 @@ func resourceApp() *schema.Resource {
 				Optional:     true,
 				Default:      "0.0.0.0",
 				ValidateFunc: validation.IsIPv4Address,
-				Description: "The IPv4 address that nginx will bind to for this application. Defaults to '0.0.0.0'.",
+				Description:  "The IPv4 address that nginx will bind to for this application. Defaults to '0.0.0.0'.",
 			},
 			"nginx_bind_address_ipv6": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Default:      "::",
 				ValidateFunc: validation.IsIPv6Address,
-				Description: "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
+				Description:  "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
 			},
 			"from_image": {
 				Type:        schema.TypeString,
@@ -96,16 +96,16 @@ func resourceApp() *schema.Resource {
 				Description: "Docker image to deploy the app from via `git:from-image` (e.g. `posthog/posthog:release-1.33.0`). When set, the app is deployed from this image. Private registries require prior `registry:login` on the Dokku host.",
 			},
 			"networks": {
-				Type:     schema.TypeList,
-				Optional: true,
-				MaxItems: 1,
-				Description: "Docker network attachment for the app. Creates the network if missing. See https://dokku.com/docs/networking/network/",
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Docker network attachment and alias settings for the app. Creates named networks if missing. See https://dokku.com/docs/networking/network/",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"attach_post_create": {
 							Type:        schema.TypeString,
 							Optional:    true,
-							Description: "Network attached after container create (before start). Enables DNS between apps as `<app>.web`.",
+							Description: "Network attached after container create (before start). Enables DNS between apps as `<app>.web` (or `<app>.web.<tld>` when tld is set).",
 						},
 						"attach_post_deploy": {
 							Type:        schema.TypeString,
@@ -116,6 +116,11 @@ func resourceApp() *schema.Resource {
 							Type:        schema.TypeString,
 							Optional:    true,
 							Description: "Network used as the container's initial/primary network.",
+						},
+						"tld": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "TLD suffixed to the app network alias for all attached networks (e.g. `internal` → `<app>.web.internal`). Not a Docker network name.",
 						},
 					},
 				},
@@ -146,7 +151,6 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 	return diags
 }
 
-//
 func appRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -168,7 +172,6 @@ func appRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Di
 	return diags
 }
 
-//
 func appUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
@@ -184,7 +187,6 @@ func appUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 	return diags
 }
 
-//
 func appDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
