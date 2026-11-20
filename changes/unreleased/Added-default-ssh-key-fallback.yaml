@@ -1,0 +1,3 @@
+kind: Added
+body: Resolve ~/.ssh/config via ssh -G (IdentityFile including .pub agent matching, IdentitiesOnly, and IdentityAgent) and fall back to active SSH agent keys or ~/.ssh/id_{ed25519,rsa,ecdsa,dsa} when ssh_cert is not specified
+time: 2026-10-02T11:57:00Z
