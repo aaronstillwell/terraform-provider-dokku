@@ -102,7 +102,10 @@ func sensitiveSSHOutput(cmd string) bool {
 		return false
 	}
 	return fields[0] == "config:show" ||
-		strings.HasSuffix(fields[0], ":info")
+		strings.HasSuffix(fields[0], ":info") ||
+		fields[0] == "logs:report" ||
+		fields[0] == "logs:set" ||
+		fields[0] == "logs:vector-logs"
 }
 
 // Run a command using the provided SSH client
