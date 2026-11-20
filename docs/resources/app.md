@@ -3,12 +3,12 @@
 page_title: "dokku_app Resource - terraform-provider-dokku"
 subcategory: ""
 description: |-
-  Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, and deploying from a Docker image via from_image.
+  Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, Docker networks, and deploying from a Docker image via from_image.
 ---
 
 # dokku_app (Resource)
 
-Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, and deploying from a Docker image via `from_image`.
+Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, Docker networks, and deploying from a Docker image via `from_image`.
 
 ## Example Usage
 

@@ -20,7 +20,9 @@
 
 This is a terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Not all configuration options are currently supported.
 
-This provider is currently tested against Dokku >= v0.30 and <= 0.36, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
+This provider is currently tested against Dokku >= v0.30 and <= 0.38, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
+
+**Proxy compatibility:** The `dokku_app` resource assumes Dokku's nginx proxy. Caddy and other alternative proxies are not currently supported. App creation and refresh run `nginx:set` and `nginx:report` even when no nginx settings are explicitly configured. These operations may fail if the nginx plugin is disabled or unavailable, and the provider does not handle Caddy's rebuild requirements after domain or port changes.
 
 ## Key Features
 
@@ -29,6 +31,37 @@ This provider is currently tested against Dokku >= v0.30 and <= 0.36, although c
 - 🔗 **Service Links**: Connect your apps to databases
 - 🌐 **Domains**: Configure custom domains for your apps
 - 🔧 **Config**: Manage environment variables and app settings
+- 📜 **Log Configuration & Drains**: Manage global and per-app Dokku log settings and Vector log drains
+
+## Scheduled Postgres backups
+
+`dokku_postgres_backup` manages the default scheduled backup independently of
+`dokku_postgres_service`. It supports S3-compatible storage such as Cloudflare R2,
+with a bucket, endpoint URL, region, signature version, and cron schedule.
+See the [resource documentation](docs/resources/postgres_backup.md) and
+[R2/1Password example](examples/resources/dokku_postgres_backup/resource.tf).
+This resource requires a provider build containing this feature and
+Terraform/OpenTofu >= 1.11 for native write-only credentials. Pass credentials
+from ephemeral inputs or an ephemeral 1Password item; increment
+`credentials_version` after rotating them. Schedule and storage changes update
+in place, and removing the backup resource retains the database and stored objects.
+Retention remains a bucket lifecycle policy.
+
+## Log configuration & drains
+
+`dokku_global_logs` and `dokku_app_logs` manage global and per-application Dokku
+log settings and Vector log drains targeting Dokku `0.38.x`.
+See the [global logs documentation](docs/resources/global_logs.md)
+([example](examples/resources/dokku_global_logs/resource.tf)) and
+[app logs documentation](docs/resources/app_logs.md)
+([example](examples/resources/dokku_app_logs/resource.tf)).
+Both resources support dual sink attributes: use write-only `vector_sink_wo`
+and `vector_cron_sink_wo` (with `*_version` and Terraform/OpenTofu >= 1.11) for
+DSNs containing API keys or tokens, or `vector_sink` and `vector_cron_sink` for
+non-secret DSNs or older Terraform versions. `dokku_global_logs` also manages
+`vector_networks` and optional `vector_running` lifecycle control (`logs:vector-start`
+/ `logs:vector-stop`, restarting Vector when `vector_image` or `vector_networks`
+change while running).
 
 ## How To Use
 
@@ -47,7 +80,7 @@ terraform {
 
 2. Initialise the provider with your host settings. The SSH key should be that of a [dokku user](https://dokku.com/docs/deployment/user-management/). Dokku users have dokku set as a forced command - the provider will not attempt to explicitly specify the dokku binary over SSH.
 
-An SSH key can be provided as an absolute path or inline.
+An SSH key can be provided as an absolute path or inline. If omitted, the provider resolves `~/.ssh/config` via `ssh -G` (`IdentityFile` including `.pub` files matched against the SSH agent such as 1Password bookmarks, `IdentitiesOnly`, and `IdentityAgent`), falling back to active SSH agent keys and `~/.ssh/id_{ed25519,rsa,ecdsa,dsa}`.
 
 ```hcl
 provider "dokku" {
@@ -85,7 +118,7 @@ resource "dokku_app" "rails-app" {
 
 ### Tested dokku versions
 
-The provider is currently tested against versions 0.30 through to 0.35 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
+The provider is currently tested against versions 0.30 through to 0.38 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
 
 The provider will check the version of dokku being used and by default will fail if a version outside this range is detected. This behaviour can be disabled with the `fail_on_untested_version` attribute. E.g
 
@@ -115,6 +148,23 @@ From here you can build & test the provider. This VM has dokku running in a dock
 Please raise an issue if you have any difficulties developing.
 
 ### Run acceptance tests locally
+
+The backup and logs contract tests (`TestBackupWriteOnlyCLI`,
+`TestBackupWriteOnlyUnsupportedCLI`, and `TestLogsWriteOnlyCLI`) run with
+`go test ./...` and need no Dokku host or cloud credentials. They use an
+in-process SSH server and installed Terraform and OpenTofu CLIs to exercise
+real provider RPCs. Install CLI versions >= 1.11; missing CLIs are skipped.
+Set `DOKKU_BACKUP_TEST_CLIS` to a platform path-separated list of binaries to
+require a compatibility matrix (used by both backup and logs contract tests).
+Set `DOKKU_BACKUP_TEST_OLD_CLIS` to explicitly test rejection of unsupported
+clients in the backup contract tests. Use `go test -race ./...` for the race
+checks.
+
+Regenerate documentation with tfplugindocs v0.23.0 (requires Go >= 1.24):
+
+```sh
+go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.23.0 generate --provider-name terraform-provider-dokku
+```
 
 You can run the full acceptance test suite locally with `make testacc`, but note these take some time to run (~10 min).
 
