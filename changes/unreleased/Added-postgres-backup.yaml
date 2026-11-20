@@ -1,0 +1,3 @@
+kind: Added
+body: Scheduled Postgres backups with custom S3 endpoints, native write-only credentials, in-place updates, drift detection, and safe removal independent of the database lifecycle (thanks @iloveitaly).
+time: 2026-11-16T00:00:00Z
