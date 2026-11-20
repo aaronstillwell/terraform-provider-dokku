@@ -72,6 +72,8 @@ func Provider() *schema.Provider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"dokku_app":                     resourceApp(),
+			"dokku_global_logs":             resourceGlobalLogs(),
+			"dokku_app_logs":                resourceAppLogs(),
 			"dokku_postgres_service":        resourcePostgresService(),
 			"dokku_postgres_backup":         resourcePostgresBackup(),
 			"dokku_postgres_service_link":   resourcePostgresServiceLink(),
@@ -162,7 +164,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	log.Printf("[DEBUG] host version %v", hostVersion)
 
-	testedVersions := ">=0.30.0 <0.37.0"
+	testedVersions := ">=0.30.0 <0.39.0"
 	testedErrMsg := fmt.Sprintf("This provider has not been tested against Dokku version %s. Tested version range: %s", string(found), testedVersions)
 
 	if err == nil {
