@@ -66,7 +66,7 @@ jobs:
       - go/load-mod-cache:
           key: "v3"
       - terraform/install:
-          terraform_version: "1.1.5"
+          terraform_version: "1.11.4"
       - run:
           name: Install gotestsum
           command: |
@@ -136,13 +136,13 @@ jobs:
 
   build-docs:
     docker:
-      - image: cimg/go:1.23
+      - image: cimg/go:1.24
     resource_class: small
     steps:
       - checkout
       - run:
           name: Install tfplugindocs
-          command: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+          command: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.23.0
       - run:
           name: Generate docs
           command: tfplugindocs generate --provider-name terraform-provider-dokku

@@ -1,0 +1,3 @@
+kind: Added
+body: tld attribute on dokku_app.networks for custom network DNS aliases via network:set tld
+time: 2026-07-25T12:00:00Z

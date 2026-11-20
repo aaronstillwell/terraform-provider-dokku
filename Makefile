@@ -5,11 +5,19 @@ NAME=dokku
 BINARY=terraform-provider-${NAME}
 VERSION=0.1
 OS_ARCH=darwin_amd64
+# Directory used by dev.tfrc provider_installation.dev_overrides
+DEV_BIN_DIR=bin
 
 default: install
 
 build:
 	go build -o ${BINARY}
+
+# Build into ./bin for use with dev.tfrc (preferred local-dev path).
+#   export TF_CLI_CONFIG_FILE=$$(pwd)/dev.tfrc
+build-dev:
+	mkdir -p ${DEV_BIN_DIR}
+	go build -o ${DEV_BIN_DIR}/${BINARY}
 
 release:
 	GOOS=darwin GOARCH=amd64 go build -o ./bin/${BINARY}_${VERSION}_darwin_amd64

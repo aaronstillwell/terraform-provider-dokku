@@ -633,6 +633,161 @@ resource "dokku_app" "test" {
 	})
 }
 
+func TestAppNetworksTld(t *testing.T) {
+	appName := fmt.Sprintf("test-net-tld-%s", acctest.RandString(10))
+	netName := fmt.Sprintf("tf-net-%s", acctest.RandString(8))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+		tld                = "internal"
+	}
+}
+`, appName, netName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: netName,
+						Tld:              "internal",
+					}),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+		tld                = "svc.cluster.local"
+	}
+}
+`, appName, netName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: netName,
+						Tld:              "svc.cluster.local",
+					}),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+	}
+}
+`, appName, netName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: netName,
+						Tld:              "",
+					}),
+				),
+			},
+		},
+	})
+}
+
+func TestAppNetworksTldOnly(t *testing.T) {
+	// tld must not be treated as a Docker network name (no network:create)
+	appName := fmt.Sprintf("test-tld-only-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		tld = "internal"
+	}
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						Tld: "internal",
+					}),
+				),
+			},
+		},
+	})
+}
+
+func TestAppFromImage(t *testing.T) {
+	appName := fmt.Sprintf("test-from-image-%s", acctest.RandString(10))
+	// Public, small image suitable for git:from-image acceptance tests
+	image := "nginx:1.27-alpine"
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name       = "%s"
+	from_image = "%s"
+}
+`, appName, image),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppFromImage("dokku_app.test", image),
+				),
+			},
+		},
+	})
+}
+
+func TestAppFromImageUpdate(t *testing.T) {
+	appName := fmt.Sprintf("test-from-image-upd-%s", acctest.RandString(10))
+	image1 := "nginx:1.27-alpine"
+	image2 := "nginx:1.26-alpine"
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name       = "%s"
+	from_image = "%s"
+}
+`, appName, image1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppFromImage("dokku_app.test", image1),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name       = "%s"
+	from_image = "%s"
+}
+`, appName, image2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppFromImage("dokku_app.test", image2),
+				),
+			},
+		},
+	})
+}
+
 func TestAppNginxIpv6Address(t *testing.T) {
 	appName := fmt.Sprintf("test-nginxip6-%s", acctest.RandString(10))
 
@@ -679,7 +834,6 @@ resource "dokku_app" "test" {
 	})
 }
 
-//
 func testAccCheckDokkuAppExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -704,7 +858,6 @@ func testAccCheckDokkuAppExists(n string) resource.TestCheckFunc {
 	}
 }
 
-//
 func testAccCheckDokkuAppConfigVar(n string, varName string, varValue string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -906,7 +1059,6 @@ func testAccCheckDokkuAppPortsDontExist(n string, ports ...string) resource.Test
 	}
 }
 
-//
 func testAccCheckDokkuAppNginxIpv4Addr(n string, ip string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -931,7 +1083,6 @@ func testAccCheckDokkuAppNginxIpv4Addr(n string, ip string) resource.TestCheckFu
 	}
 }
 
-//
 func testAccCheckDokkuAppNginxIpv6Addr(n string, ip string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -956,7 +1107,63 @@ func testAccCheckDokkuAppNginxIpv6Addr(n string, ip string) resource.TestCheckFu
 	}
 }
 
-//
+func testAccCheckDokkuAppFromImage(n string, image string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		if app.FromImage != image {
+			return fmt.Errorf("from_image was %q, expected %q", app.FromImage, image)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuAppNetworks(n string, expected DokkuAppNetworks) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info: %w", err)
+		}
+
+		got := app.Networks
+		if got.AttachPostCreate != expected.AttachPostCreate {
+			return fmt.Errorf("attach_post_create was %q, expected %q", got.AttachPostCreate, expected.AttachPostCreate)
+		}
+		if got.AttachPostDeploy != expected.AttachPostDeploy {
+			return fmt.Errorf("attach_post_deploy was %q, expected %q", got.AttachPostDeploy, expected.AttachPostDeploy)
+		}
+		if got.InitialNetwork != expected.InitialNetwork {
+			return fmt.Errorf("initial_network was %q, expected %q", got.InitialNetwork, expected.InitialNetwork)
+		}
+		if got.Tld != expected.Tld {
+			return fmt.Errorf("tld was %q, expected %q", got.Tld, expected.Tld)
+		}
+
+		return nil
+	}
+}
+
 func testAccDokkuAppDestroy(s *terraform.State) error {
 	sshClient := testAccProvider.Meta().(*goph.Client)
 
