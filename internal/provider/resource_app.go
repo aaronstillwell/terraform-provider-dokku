@@ -109,7 +109,15 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 		return diag.FromErr(err)
 	}
 
+	// The app exists on the host now, so record it in state before reading it
+	// back. If the read fails, Terraform keeps the app as tainted instead of
+	// losing track of it.
+	d.SetId(app.Name)
+
 	app, err = dokkuAppRetrieve(app.Name, sshClient)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	app.setOnResourceData(d)
 
 	return diags
