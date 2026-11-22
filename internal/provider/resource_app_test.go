@@ -70,6 +70,39 @@ resource "dokku_app" "test" {
 	})
 }
 
+// If a configuration step fails after apps:create, the app must still be kept
+// in state as tainted. Dokku rejects the underscore in the domain, so
+// domains:set fails once the app exists. The second step only succeeds if
+// Terraform tracked the app and replaces it; otherwise apps:create fails
+// because the app already exists.
+func TestAccDokkuAppCreateConfigureError(t *testing.T) {
+	appName := fmt.Sprintf("test-create-conf-err-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+  name    = "%s"
+  domains = ["invalid_domain.dokku.me"]
+}`, appName),
+				ExpectError: regexp.MustCompile("is invalid"),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+  name = "%s"
+}`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccDokkuAppConfigVars(t *testing.T) {
 	appName := fmt.Sprintf("test-config-vars-%s", acctest.RandString(10))
 

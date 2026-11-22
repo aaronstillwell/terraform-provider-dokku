@@ -107,16 +107,14 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 
 	app := NewDokkuAppFromResourceData(d)
 
-	err := dokkuAppCreate(app, sshClient)
+	// Record the app in state as soon as it exists on the host. If a later
+	// configuration step or the read below fails, Terraform keeps the app as
+	// tainted instead of losing track of it.
+	err := dokkuAppCreate(app, sshClient, func() { d.SetId(app.Name) })
 
 	if err != nil {
 		return diag.FromErr(err)
 	}
-
-	// The app exists on the host now, so record it in state before reading it
-	// back. If the read fails, Terraform keeps the app as tainted instead of
-	// losing track of it.
-	d.SetId(app.Name)
 
 	app, err = appCreateRetrieve(app.Name, sshClient)
 	if err != nil {
