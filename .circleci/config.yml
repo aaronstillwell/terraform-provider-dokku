@@ -159,10 +159,22 @@ jobs:
       - checkout
       - run:
           name: Install tfplugindocs
-          command: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+          # Pinned so formatting changes in new releases don't fail the check below
+          command: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0
       - run:
           name: Generate docs
           command: tfplugindocs generate --provider-name terraform-provider-dokku
+      - run:
+          name: Check committed docs are up to date
+          # The Terraform Registry publishes the committed docs/ folder, so it
+          # must match what tfplugindocs generates from the schema and examples/.
+          command: |
+            if [ -n "$(git status --porcelain -- docs/)" ]; then
+              git status --short -- docs/
+              git diff -- docs/
+              echo "docs/ is out of date. Run 'tfplugindocs generate --provider-name terraform-provider-dokku' and commit the result."
+              exit 1
+            fi
       - persist_to_workspace:
           root: .
           paths:
