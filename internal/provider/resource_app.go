@@ -96,6 +96,10 @@ func resourceApp() *schema.Resource {
 	}
 }
 
+// appCreateRetrieve reads the app back after create. It is a variable so
+// tests can make the read fail.
+var appCreateRetrieve = dokkuAppRetrieve
+
 func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -114,7 +118,7 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 	// losing track of it.
 	d.SetId(app.Name)
 
-	app, err = dokkuAppRetrieve(app.Name, sshClient)
+	app, err = appCreateRetrieve(app.Name, sshClient)
 	if err != nil {
 		return diag.FromErr(err)
 	}

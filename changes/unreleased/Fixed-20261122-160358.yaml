@@ -1,0 +1,3 @@
+kind: Fixed
+body: Provider no longer crashes when reading an app back after create fails; the new app is kept in state as tainted instead of being left untracked on the Dokku host
+time: 2026-11-22T16:03:58.767726Z
