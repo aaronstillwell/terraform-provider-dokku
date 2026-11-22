@@ -11,6 +11,47 @@ import (
 	"al.essio.dev/pkg/shellescape"
 )
 
+// DokkuAppNetworks mirrors dokku network:set properties for an app.
+type DokkuAppNetworks struct {
+	AttachPostCreate string
+	AttachPostDeploy string
+	InitialNetwork   string
+	// Tld is a DNS suffix for network aliases (e.g. "internal" → app.web.internal).
+	// Unlike the attach/initial fields, this is not a Docker network name.
+	Tld string
+}
+
+func (n DokkuAppNetworks) IsEmpty() bool {
+	return n.AttachPostCreate == "" && n.AttachPostDeploy == "" && n.InitialNetwork == "" && n.Tld == ""
+}
+
+func (n DokkuAppNetworks) toResourceData() []interface{} {
+	return []interface{}{
+		map[string]interface{}{
+			"attach_post_create": n.AttachPostCreate,
+			"attach_post_deploy": n.AttachPostDeploy,
+			"initial_network":    n.InitialNetwork,
+			"tld":                n.Tld,
+		},
+	}
+}
+
+// networksFromRaw converts the raw value of the networks block, as returned by
+// d.Get or d.GetChange, into DokkuAppNetworks.
+func networksFromRaw(raw interface{}) DokkuAppNetworks {
+	n := DokkuAppNetworks{}
+	list, ok := raw.([]interface{})
+	if !ok || len(list) == 0 || list[0] == nil {
+		return n
+	}
+	m := list[0].(map[string]interface{})
+	n.AttachPostCreate, _ = m["attach_post_create"].(string)
+	n.AttachPostDeploy, _ = m["attach_post_deploy"].(string)
+	n.InitialNetwork, _ = m["initial_network"].(string)
+	n.Tld, _ = m["tld"].(string)
+	return n
+}
+
 //
 type DokkuApp struct {
 	Id         string
@@ -23,6 +64,7 @@ type DokkuApp struct {
 	Ports                []string
 	NginxBindAddressIpv4 string
 	NginxBindAddressIpv6 string
+	Networks             DokkuAppNetworks
 }
 
 //
@@ -48,6 +90,15 @@ func (app *DokkuApp) setOnResourceData(d *schema.ResourceData) {
 
 	d.Set("nginx_bind_address_ipv4", app.NginxBindAddressIpv4)
 	d.Set("nginx_bind_address_ipv6", app.NginxBindAddressIpv6)
+
+	// Only manage networks once they are in state (set from config, or by
+	// import), so apps that don't use the block ignore network settings made
+	// outside terraform.
+	if _, ok := d.GetOk("networks"); ok {
+		d.Set("networks", app.Networks.toResourceData())
+	} else {
+		d.Set("networks", nil)
+	}
 }
 
 // Leave alone config vars that are set outside of terraform. This is one way
@@ -126,6 +177,7 @@ func NewDokkuAppFromResourceData(d *schema.ResourceData) *DokkuApp {
 		Ports:                ports,
 		NginxBindAddressIpv4: d.Get("nginx_bind_address_ipv4").(string),
 		NginxBindAddressIpv6: d.Get("nginx_bind_address_ipv6").(string),
+		Networks:             networksFromRaw(d.Get("networks")),
 	}
 }
 
@@ -178,6 +230,12 @@ func dokkuAppRetrieve(appName string, client *goph.Client) (*DokkuApp, error) {
 	}
 	app.NginxBindAddressIpv4 = nginxReport.BindAddressIpv4
 	app.NginxBindAddressIpv6 = nginxReport.BindAddressIpv6
+
+	networks, err := readAppNetworks(appName, client)
+	if err != nil {
+		return nil, err
+	}
+	app.Networks = networks
 
 	return app, nil
 }
@@ -389,7 +447,12 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client, created func()) error {
 
 	err = dokkuAppNginxOptSet(app.Name, "bind-address-ipv6", app.NginxBindAddressIpv6, client)
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	// The app has not been deployed yet, so the settings apply on first deploy.
+	return dokkuAppNetworksApply(app.Name, DokkuAppNetworks{}, app.Networks, client)
 }
 
 //
@@ -603,5 +666,110 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 		dokkuAppNginxOptSet(appName, "bind-address-ipv6", newBindAddr.(string), client)
 	}
 
+	if d.HasChange("networks") {
+		oldRaw, newRaw := d.GetChange("networks")
+		err := dokkuAppNetworksApply(appName, networksFromRaw(oldRaw), networksFromRaw(newRaw), client)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// dokkuAppNetworksApply sets each network property that differs between oldN
+// and newN. Missing Docker networks are created for the attach/initial
+// properties (not for tld). If anything changed and the app is deployed, it is
+// rebuilt so the new attachments and aliases take effect.
+func dokkuAppNetworksApply(appName string, oldN, newN DokkuAppNetworks, client *goph.Client) error {
+	props := []struct {
+		name          string
+		old           string
+		new           string
+		ensureNetwork bool
+	}{
+		{"attach-post-create", oldN.AttachPostCreate, newN.AttachPostCreate, true},
+		{"attach-post-deploy", oldN.AttachPostDeploy, newN.AttachPostDeploy, true},
+		{"initial-network", oldN.InitialNetwork, newN.InitialNetwork, true},
+		{"tld", oldN.Tld, newN.Tld, false},
+	}
+
+	changed := false
+	for _, p := range props {
+		if p.old == p.new {
+			continue
+		}
+		changed = true
+		if err := dokkuAppNetworkSet(appName, p.name, p.new, p.ensureNetwork, client); err != nil {
+			return err
+		}
+	}
+
+	if !changed {
+		return nil
+	}
+
+	deployed, err := dokkuAppDeployed(appName, client)
+	if err != nil {
+		return err
+	}
+	if !deployed {
+		return nil
+	}
+
+	return run(client, fmt.Sprintf("ps:rebuild %s", appName)).err
+}
+
+func dokkuAppDeployed(appName string, client *goph.Client) (bool, error) {
+	res := run(client, fmt.Sprintf("ps:report %s --deployed", appName))
+	if res.err != nil {
+		return false, res.err
+	}
+	return strings.TrimSpace(res.stdout) == "true", nil
+}
+
+// dokkuAppNetworkSet runs network:set for a property, or clears it when value
+// is empty. When ensureNetwork is true, the Docker network named by value is
+// created if it does not exist. tld must pass false, as its value is a DNS
+// suffix rather than a network name.
+func dokkuAppNetworkSet(appName string, property string, value string, ensureNetwork bool, client *goph.Client) error {
+	if value == "" {
+		return run(client, fmt.Sprintf("network:set %s %s", appName, property)).err
+	}
+
+	if ensureNetwork {
+		if err := dokkuNetworkEnsure(value, client); err != nil {
+			return err
+		}
+	}
+
+	return run(client, fmt.Sprintf("network:set %s %s %s", appName, property, shellescape.Quote(value))).err
+}
+
+// dokkuNetworkEnsure creates the named network if it does not exist. Networks
+// are never destroyed by the provider, as other apps may be attached to them.
+func dokkuNetworkEnsure(name string, client *goph.Client) error {
+	quoted := shellescape.Quote(name)
+	if run(client, fmt.Sprintf("network:exists %s", quoted)).err == nil {
+		return nil
+	}
+	log.Printf("[DEBUG] creating dokku network %s\n", name)
+	return run(client, fmt.Sprintf("network:create %s", quoted)).err
+}
+
+func readAppNetworks(appName string, client *goph.Client) (DokkuAppNetworks, error) {
+	res := run(client, fmt.Sprintf("network:report %s", appName))
+	if res.err != nil {
+		return DokkuAppNetworks{}, res.err
+	}
+
+	// Skip the "=====> app network information" header
+	report := parseKeyValues(strings.Split(res.stdout, "\n")[1:])
+
+	return DokkuAppNetworks{
+		AttachPostCreate: report["Network attach post create"],
+		AttachPostDeploy: report["Network attach post deploy"],
+		InitialNetwork:   report["Network initial network"],
+		Tld:              report["Network tld"],
+	}, nil
 }

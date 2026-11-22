@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -12,7 +13,7 @@ import (
 
 func resourceApp() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, and port mapping.",
+		Description: "Manages a Dokku application. This resource enables the configuration and deployment of applications on a Dokku host, supporting environment variables, domains, buildpacks, port mapping, and Docker networks.",
 		CreateContext: appCreate,
 		ReadContext:   appRead,
 		UpdateContext: appUpdate,
@@ -89,9 +90,42 @@ func resourceApp() *schema.Resource {
 				ValidateFunc: validation.IsIPv6Address,
 				Description: "The IPv6 address that nginx will bind to for this application. Defaults to '::'.",
 			},
+			"networks": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Docker network attachment and alias settings for the app. Creates named networks if missing, but never destroys them. See https://dokku.com/docs/networking/network/",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"attach_post_create": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validateNetworkName,
+							Description:  "Network attached after container create (before start). Enables DNS between apps as `<app>.web` (or `<app>.web.<tld>` when tld is set).",
+						},
+						"attach_post_deploy": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validateNetworkName,
+							Description:  "Network attached after a successful deploy.",
+						},
+						"initial_network": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validateNetworkName,
+							Description:  "Network used as the container's initial/primary network.",
+						},
+						"tld": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "TLD suffixed to the app network alias for all attached networks (e.g. `internal` → `<app>.web.internal`). Not a Docker network name.",
+						},
+					},
+				},
+			},
 		},
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: appImport,
 		},
 	}
 }
@@ -178,4 +212,31 @@ func appDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 	}
 
 	return diags
+}
+
+// Docker network names must start with a letter or number and contain only
+// letters, numbers, '_', '.' or '-'.
+var validateNetworkName = validation.StringMatch(
+	regexp.MustCompile(`^([a-zA-Z0-9][a-zA-Z0-9_.-]*)?$`),
+	"must start with a letter or number and contain only letters, numbers, '_', '.' or '-'",
+)
+
+// appImport puts the networks block in state when the app has network
+// settings, so that read manages them from then on.
+func appImport(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	sshClient := m.(*goph.Client)
+
+	app, err := dokkuAppRetrieve(d.Id(), sshClient)
+	if err != nil {
+		return nil, err
+	}
+	if app.Id == "" {
+		return nil, fmt.Errorf("dokku app %s does not exist", d.Id())
+	}
+
+	if !app.Networks.IsEmpty() {
+		d.Set("networks", app.Networks.toResourceData())
+	}
+
+	return []*schema.ResourceData{d}, nil
 }

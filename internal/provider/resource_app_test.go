@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -1045,4 +1046,356 @@ func testAccDokkuAppDestroy(s *terraform.State) error {
 	}
 
 	return nil
+}
+
+func TestAppNetworksTld(t *testing.T) {
+	appName := fmt.Sprintf("test-net-tld-%s", acctest.RandString(10))
+	netName := fmt.Sprintf("tf-net-%s", acctest.RandString(8))
+	testAccDestroyNetworksAfter(t, netName)
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+		tld                = "internal"
+	}
+}
+`, appName, netName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuNetworkExists(netName),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: netName,
+						Tld:              "internal",
+					}),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+		tld                = "svc.cluster.local"
+	}
+}
+`, appName, netName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: netName,
+						Tld:              "svc.cluster.local",
+					}),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+	}
+}
+`, appName, netName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: netName,
+					}),
+				),
+			},
+		},
+	})
+}
+
+func TestAppNetworksTldOnly(t *testing.T) {
+	appName := fmt.Sprintf("test-tld-only-%s", acctest.RandString(10))
+	// tld is a DNS suffix, so no network should be created with its name
+	tld := fmt.Sprintf("tld%s", acctest.RandString(8))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		tld = "%s"
+	}
+}
+`, appName, tld),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuNetworkDoesNotExist(tld),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						Tld: tld,
+					}),
+				),
+			},
+		},
+	})
+}
+
+func TestAppNetworksAllProperties(t *testing.T) {
+	appName := fmt.Sprintf("test-net-all-%s", acctest.RandString(10))
+	createNet := fmt.Sprintf("tf-net-c-%s", acctest.RandString(8))
+	deployNet := fmt.Sprintf("tf-net-d-%s", acctest.RandString(8))
+	deployNet2 := fmt.Sprintf("tf-net-d2-%s", acctest.RandString(8))
+	initialNet := fmt.Sprintf("tf-net-i-%s", acctest.RandString(8))
+	testAccDestroyNetworksAfter(t, createNet, deployNet, deployNet2, initialNet)
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+		attach_post_deploy = "%s"
+		initial_network    = "%s"
+		tld                = "internal"
+	}
+}
+`, appName, createNet, deployNet, initialNet),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuNetworkExists(createNet),
+					testAccCheckDokkuNetworkExists(deployNet),
+					testAccCheckDokkuNetworkExists(initialNet),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: createNet,
+						AttachPostDeploy: deployNet,
+						InitialNetwork:   initialNet,
+						Tld:              "internal",
+					}),
+				),
+			},
+			// Change one network and clear another
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+		attach_post_deploy = "%s"
+		tld                = "internal"
+	}
+}
+`, appName, createNet, deployNet2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuNetworkExists(deployNet2),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{
+						AttachPostCreate: createNet,
+						AttachPostDeploy: deployNet2,
+						Tld:              "internal",
+					}),
+				),
+			},
+			// Removing the block clears every property
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dokku_app.test", "networks.#", "0"),
+					testAccCheckDokkuAppNetworks("dokku_app.test", DokkuAppNetworks{}),
+				),
+			},
+		},
+	})
+}
+
+func TestAppNetworksImport(t *testing.T) {
+	appName := fmt.Sprintf("test-net-import-%s", acctest.RandString(10))
+	netName := fmt.Sprintf("tf-net-%s", acctest.RandString(8))
+	testAccDestroyNetworksAfter(t, netName)
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+		tld                = "internal"
+	}
+}
+`, appName, netName),
+			},
+			{
+				ResourceName:  "dokku_app.test",
+				ImportState:   true,
+				ImportStateId: appName,
+				ImportStateCheck: func(states []*terraform.InstanceState) error {
+					if len(states) != 1 {
+						return fmt.Errorf("expected 1 imported resource, got %d", len(states))
+					}
+					attrs := states[0].Attributes
+					if attrs["networks.0.attach_post_create"] != netName {
+						return fmt.Errorf("imported attach_post_create was %q, expected %q", attrs["networks.0.attach_post_create"], netName)
+					}
+					if attrs["networks.0.tld"] != "internal" {
+						return fmt.Errorf("imported tld was %q, expected %q", attrs["networks.0.tld"], "internal")
+					}
+					return nil
+				},
+			},
+		},
+	})
+}
+
+// Changing networks on a deployed app must rebuild it, so the running
+// container ends up attached to the new network.
+func TestAppNetworksRebuildDeployed(t *testing.T) {
+	appName := fmt.Sprintf("test-net-deploy-%s", acctest.RandString(10))
+	netA := fmt.Sprintf("tf-net-a-%s", acctest.RandString(8))
+	netB := fmt.Sprintf("tf-net-b-%s", acctest.RandString(8))
+	testAccDestroyNetworksAfter(t, netA, netB)
+
+	config := `
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "%s"
+	}
+}
+`
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(config, appName, netA),
+			},
+			{
+				PreConfig: func() {
+					sshClient := testAccProvider.Meta().(*goph.Client)
+					res := run(sshClient, fmt.Sprintf("git:from-image %s nginx:1.27-alpine", appName))
+					if res.err != nil {
+						t.Fatalf("failed to deploy %s: %v", appName, res.err)
+					}
+				},
+				Config: fmt.Sprintf(config, appName, netB),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppContainerOnNetwork(appName, netB),
+				),
+			},
+		},
+	})
+}
+
+func TestAppNetworksInvalidName(t *testing.T) {
+	appName := fmt.Sprintf("test-net-invalid-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	networks {
+		attach_post_create = "not a valid name!"
+	}
+}
+`, appName),
+				ExpectError: regexp.MustCompile("must start with a letter or number"),
+			},
+		},
+	})
+}
+
+func testAccCheckDokkuAppNetworks(n string, expected DokkuAppNetworks) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info: %w", err)
+		}
+
+		if app.Networks != expected {
+			return fmt.Errorf("networks were %+v, expected %+v", app.Networks, expected)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuNetworkExists(name string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		sshClient := testAccProvider.Meta().(*goph.Client)
+		if res := run(sshClient, fmt.Sprintf("network:exists %s", name)); res.err != nil {
+			return fmt.Errorf("network %s should exist: %v", name, res.err)
+		}
+		return nil
+	}
+}
+
+func testAccCheckDokkuNetworkDoesNotExist(name string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		sshClient := testAccProvider.Meta().(*goph.Client)
+		if res := run(sshClient, fmt.Sprintf("network:exists %s", name)); res.err == nil {
+			return fmt.Errorf("network %s should not exist", name)
+		}
+		return nil
+	}
+}
+
+func testAccCheckDokkuAppContainerOnNetwork(appName string, network string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		sshClient := testAccProvider.Meta().(*goph.Client)
+		res := run(sshClient, fmt.Sprintf("ps:inspect %s", appName))
+		if res.err != nil {
+			return fmt.Errorf("failed to inspect %s: %v", appName, res.err)
+		}
+		if !strings.Contains(res.stdout, fmt.Sprintf("%q", network)) {
+			return fmt.Errorf("container for %s is not attached to network %s", appName, network)
+		}
+		return nil
+	}
+}
+
+// testAccDestroyNetworksAfter removes networks created during a test, as the
+// provider never destroys them itself. It runs after the test's apps have
+// been destroyed.
+func testAccDestroyNetworksAfter(t *testing.T, names ...string) {
+	t.Cleanup(func() {
+		if testAccProvider.Meta() == nil {
+			return
+		}
+		sshClient := testAccProvider.Meta().(*goph.Client)
+		for _, name := range names {
+			if run(sshClient, fmt.Sprintf("network:exists %s", name)).err != nil {
+				continue
+			}
+			if res := run(sshClient, fmt.Sprintf("network:destroy %s --force", name)); res.err != nil {
+				log.Printf("[WARN] failed to destroy network %s: %v", name, res.err)
+			}
+		}
+	})
 }
