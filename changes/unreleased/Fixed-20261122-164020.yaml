@@ -1,0 +1,3 @@
+kind: Fixed
+body: Internal conversion of domains, buildpacks and ports lists no longer adds an empty entry for every item
+time: 2026-11-22T16:40:20.054322Z
