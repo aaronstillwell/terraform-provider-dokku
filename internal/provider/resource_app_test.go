@@ -1312,19 +1312,12 @@ func TestAppNetworksInvalidName(t *testing.T) {
 				Config: fmt.Sprintf(`
 resource "dokku_app" "test" {
 	name = "%s"
-}
-`, appName),
-			},
-			{
-				Config: fmt.Sprintf(`
-resource "dokku_app" "test" {
-	name = "%s"
 	networks {
 		attach_post_create = "not a valid name!"
 	}
 }
 `, appName),
-				ExpectError: regexp.MustCompile(`Error \[\d+\]`),
+				ExpectError: regexp.MustCompile("must start with a letter or number"),
 			},
 		},
 	})

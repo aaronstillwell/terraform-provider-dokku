@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -97,19 +98,22 @@ func resourceApp() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"attach_post_create": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "Network attached after container create (before start). Enables DNS between apps as `<app>.web` (or `<app>.web.<tld>` when tld is set).",
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validateNetworkName,
+							Description:  "Network attached after container create (before start). Enables DNS between apps as `<app>.web` (or `<app>.web.<tld>` when tld is set).",
 						},
 						"attach_post_deploy": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "Network attached after a successful deploy.",
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validateNetworkName,
+							Description:  "Network attached after a successful deploy.",
 						},
 						"initial_network": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "Network used as the container's initial/primary network.",
+							Type:         schema.TypeString,
+							Optional:     true,
+							ValidateFunc: validateNetworkName,
+							Description:  "Network used as the container's initial/primary network.",
 						},
 						"tld": {
 							Type:        schema.TypeString,
@@ -209,6 +213,13 @@ func appDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 
 	return diags
 }
+
+// Docker network names must start with a letter or number and contain only
+// letters, numbers, '_', '.' or '-'.
+var validateNetworkName = validation.StringMatch(
+	regexp.MustCompile(`^([a-zA-Z0-9][a-zA-Z0-9_.-]*)?$`),
+	"must start with a letter or number and contain only letters, numbers, '_', '.' or '-'",
+)
 
 // appImport puts the networks block in state when the app has network
 // settings, so that read manages them from then on.
