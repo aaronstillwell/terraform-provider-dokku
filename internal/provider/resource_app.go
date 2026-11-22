@@ -96,6 +96,10 @@ func resourceApp() *schema.Resource {
 	}
 }
 
+// appCreateRetrieve reads the app back after create. It is a variable so
+// tests can make the read fail.
+var appCreateRetrieve = dokkuAppRetrieve
+
 func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	sshClient := m.(*goph.Client)
 
@@ -103,13 +107,19 @@ func appCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.
 
 	app := NewDokkuAppFromResourceData(d)
 
-	err := dokkuAppCreate(app, sshClient)
+	// Record the app in state as soon as it exists on the host. If a later
+	// configuration step or the read below fails, Terraform keeps the app as
+	// tainted instead of losing track of it.
+	err := dokkuAppCreate(app, sshClient, func() { d.SetId(app.Name) })
 
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	app, err = dokkuAppRetrieve(app.Name, sshClient)
+	app, err = appCreateRetrieve(app.Name, sshClient)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	app.setOnResourceData(d)
 
 	return diags

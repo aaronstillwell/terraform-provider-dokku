@@ -343,7 +343,10 @@ func readAppNginxReport(appName string, client *goph.Client) (DokkuAppNginxRepor
 }
 
 //
-func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
+// dokkuAppCreate creates the app and then configures it. created is called as
+// soon as the app exists on the host, before any configuration step can fail,
+// so the caller can start tracking it.
+func dokkuAppCreate(app *DokkuApp, client *goph.Client, created func()) error {
 	res := run(client, fmt.Sprintf("apps:create %s", app.Name))
 
 	log.Printf("[DEBUG] apps:create %v\n", res.stdout)
@@ -351,6 +354,8 @@ func dokkuAppCreate(app *DokkuApp, client *goph.Client) error {
 	if res.err != nil {
 		return res.err
 	}
+
+	created()
 
 	err := dokkuAppConfigVarsSet(app, client)
 

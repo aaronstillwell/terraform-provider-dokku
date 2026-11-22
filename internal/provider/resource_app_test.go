@@ -1,8 +1,10 @@
 package provider
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -22,6 +24,76 @@ func TestAccDokkuApp(t *testing.T) {
 				Config: fmt.Sprintf(`
 resource "dokku_app" "test" {
   name   = "%s"
+}`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+				),
+			},
+		},
+	})
+}
+
+// If reading the app back after create fails, the provider must return an
+// error (not panic) and keep the new app in state as tainted. The second step
+// proves the app was tracked: Terraform replaces the tainted app. Had it been
+// left out of state, apps:create would fail because the app already exists.
+func TestAccDokkuAppCreateRetrieveError(t *testing.T) {
+	appName := fmt.Sprintf("test-create-read-err-%s", acctest.RandString(10))
+	config := fmt.Sprintf(`
+resource "dokku_app" "test" {
+  name = "%s"
+}`, appName)
+
+	t.Cleanup(func() { appCreateRetrieve = dokkuAppRetrieve })
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					appCreateRetrieve = func(string, *goph.Client) (*DokkuApp, error) {
+						return nil, errors.New("simulated read failure")
+					}
+				},
+				Config:      config,
+				ExpectError: regexp.MustCompile("simulated read failure"),
+			},
+			{
+				PreConfig: func() { appCreateRetrieve = dokkuAppRetrieve },
+				Config:    config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+				),
+			},
+		},
+	})
+}
+
+// If a configuration step fails after apps:create, the app must still be kept
+// in state as tainted. Dokku rejects the underscore in the domain, so
+// domains:set fails once the app exists. The second step only succeeds if
+// Terraform tracked the app and replaces it; otherwise apps:create fails
+// because the app already exists.
+func TestAccDokkuAppCreateConfigureError(t *testing.T) {
+	appName := fmt.Sprintf("test-create-conf-err-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+  name    = "%s"
+  domains = ["invalid_domain.dokku.me"]
+}`, appName),
+				ExpectError: regexp.MustCompile("is invalid"),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+  name = "%s"
 }`, appName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDokkuAppExists("dokku_app.test"),
