@@ -12,6 +12,15 @@ import (
 var testAccProviders map[string]*schema.Provider
 var testAccProvider *schema.Provider
 
+// testAccProviderFactories serves the shared testAccProvider, so checks can use
+// testAccProvider.Meta(). Use it instead of testAccProviders when a test config
+// declares its own provider "dokku" block: the deprecated Providers field makes
+// the SDK prepend an empty provider "dokku" {} block, which Terraform rejects as
+// a duplicate.
+var testAccProviderFactories = map[string]func() (*schema.Provider, error){
+	"dokku": func() (*schema.Provider, error) { return testAccProvider, nil },
+}
+
 func init() {
 	testAccProvider = Provider()
 	testAccProviders = map[string]*schema.Provider{
@@ -51,7 +60,7 @@ func TestAccInlineSshKeyWithPassphrase(t *testing.T) {
 	sshKey, _ := os.ReadFile(certPath)
 
 	resource.Test(t, resource.TestCase{
-		Providers: testAccProviders,
+		ProviderFactories: testAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -78,7 +87,7 @@ func TestAccSshKeyOnDiskWithPassphrase(t *testing.T) {
 	certPath := os.Getenv("DOKKU_SSH_CERT_WITH_PASSPHRASE")
 
 	resource.Test(t, resource.TestCase{
-		Providers: testAccProviders,
+		ProviderFactories: testAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -109,7 +118,7 @@ func TestAccSshKeyOnDiskWithPassphraseFromEnv(t *testing.T) {
 	})
 
 	resource.Test(t, resource.TestCase{
-		Providers: testAccProviders,
+		ProviderFactories: testAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
