@@ -117,11 +117,13 @@ jobs:
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
       - run:
           name: Install dokku plugins
+          # Pinned to the last 1.x releases. The 2.x releases moved onto
+          # dokku-datastore and break the service acceptance tests.
           command: |
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git postgres
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git redis
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git mysql
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-clickhouse.git clickhouse
+            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git --committish 1.48.0 --name postgres
+            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git --committish 1.44.1 --name redis
+            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git --committish 1.44.3 --name mysql
+            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-clickhouse.git --committish 1.49.2 --name clickhouse
       - run:
           name: Run acceptance tests
           command: make testacc-ci
