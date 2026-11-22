@@ -633,6 +633,68 @@ resource "dokku_app" "test" {
 	})
 }
 
+func TestAppFromImage(t *testing.T) {
+	appName := fmt.Sprintf("test-from-image-%s", acctest.RandString(10))
+	// Public, small image suitable for git:from-image acceptance tests
+	image := "nginx:1.27-alpine"
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name       = "%s"
+	from_image = "%s"
+}
+`, appName, image),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppFromImage("dokku_app.test", image),
+				),
+			},
+		},
+	})
+}
+
+func TestAppFromImageUpdate(t *testing.T) {
+	appName := fmt.Sprintf("test-from-image-upd-%s", acctest.RandString(10))
+	image1 := "nginx:1.27-alpine"
+	image2 := "nginx:1.26-alpine"
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name       = "%s"
+	from_image = "%s"
+}
+`, appName, image1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppFromImage("dokku_app.test", image1),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name       = "%s"
+	from_image = "%s"
+}
+`, appName, image2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppFromImage("dokku_app.test", image2),
+				),
+			},
+		},
+	})
+}
+
 func TestAppNginxIpv6Address(t *testing.T) {
 	appName := fmt.Sprintf("test-nginxip6-%s", acctest.RandString(10))
 
@@ -950,6 +1012,30 @@ func testAccCheckDokkuAppNginxIpv6Addr(n string, ip string) resource.TestCheckFu
 
 		if app.NginxBindAddressIpv6 != ip {
 			return fmt.Errorf("nginx_bind_address_ipv6 was %s, expected %s", app.NginxBindAddressIpv6, ip)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckDokkuAppFromImage(n string, image string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		sshClient := testAccProvider.Meta().(*goph.Client)
+
+		app, err := dokkuAppRetrieve(rs.Primary.ID, sshClient)
+
+		if err != nil {
+			return fmt.Errorf("Error retrieving app info")
+		}
+
+		if app.FromImage != image {
+			return fmt.Errorf("from_image was %q, expected %q", app.FromImage, image)
 		}
 
 		return nil

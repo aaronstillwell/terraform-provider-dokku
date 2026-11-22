@@ -59,6 +59,10 @@ resource "dokku_app" "rails-app" {
   # https://dokku.com/docs/configuration/nginx/#binding-to-specific-addresses
   #nginx_bind_address_ipv4 = "192.168.5.5"
   #nginx_bind_address_ipv6 = "2345:0425:2CA1:0000:0000:0567:5673:23b5"
+
+  # Deploy from an existing Docker image instead of git-pushing source.
+  # https://dokku.com/docs/deployment/methods/image/
+  #from_image = "posthog/posthog:release-1.33.0"
 }
 
 # Below are examples of the creation of services & how to link them to the 
