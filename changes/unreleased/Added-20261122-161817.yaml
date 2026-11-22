@@ -1,0 +1,3 @@
+kind: Added
+body: Support for the 2.x releases of the dokku postgres, redis, mysql and clickhouse plugins. Changing a service's name and image together now clones the service before upgrading it, and an image change that moves the service onto another definition (e.g. another postgres major version) is retried with --restart-apps, which stops linked apps while the data is migrated
+time: 2026-11-22T16:18:17.000000Z

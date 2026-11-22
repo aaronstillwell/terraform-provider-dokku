@@ -50,6 +50,10 @@ jobs:
     parameters:
       dokku-version:
         type: string
+      plugins:
+        description: Major version of the dokku datastore plugins (postgres, redis, mysql, clickhouse) to test against
+        type: enum
+        enum: ["1.x", "2.x"]
     environment:
       DOKKU_SSH_HOST: "127.0.0.1"
       DOKKU_SSH_PORT: 3022
@@ -82,7 +86,7 @@ jobs:
       - run:
           name: Pull other images used in testing
           command: |
-            sudo docker pull circleci/postgres:9.6.16-alpine-ram
+            sudo docker pull postgis/postgis:18-3.6
             sudo docker pull circleci/redis:6.2.5
             sudo docker pull mysql:5.7.36
       - run:
@@ -116,15 +120,48 @@ jobs:
           timeout: 300
           sh-command: ssh -i dokku-ssh dokku@127.0.0.1 -p 3022
       - run:
-          name: Install dokku plugins
-          # Pinned to the last releases before dokku-datastore, which breaks
-          # the service acceptance tests. For redis that is 1.43.0: 1.44.x
-          # already uses dokku-datastore.
+          name: Give the dokku user access to the docker socket
+          # The dokku/dokku image runs the docker CLI through sudo, but the 2.x
+          # datastore plugins also talk to the docker API directly as the dokku
+          # user (e.g. to run the ambassador container for exposed services).
+          # Add the dokku user to whichever group owns the mounted socket.
           command: |
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git --committish 1.48.0 --name postgres
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git --committish 1.43.0 --name redis
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git --committish 1.44.3 --name mysql
-            sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-clickhouse.git --committish 1.49.2 --name clickhouse
+            sudo docker exec dokku bash -c '
+              set -e
+              gid=$(stat -c %g /var/run/docker.sock)
+              group=$(getent group "$gid" | cut -d: -f1)
+              if [ -z "$group" ]; then
+                group=docker-host
+                groupadd -g "$gid" "$group"
+              fi
+              usermod -aG "$group" dokku
+              id dokku
+            '
+      - when:
+          condition:
+            equal: ["1.x", << parameters.plugins >>]
+          steps:
+            - run:
+                name: Install dokku plugins (last releases before dokku-datastore)
+                command: |
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git --committish 1.48.0 --name postgres
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git --committish 1.43.0 --name redis
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git --committish 1.44.3 --name mysql
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-clickhouse.git --committish 1.49.2 --name clickhouse
+      - when:
+          condition:
+            equal: ["2.x", << parameters.plugins >>]
+          steps:
+            - run:
+                name: Install dokku plugins (latest)
+                command: |
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git --name postgres
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git --name redis
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git --name mysql
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-clickhouse.git --name clickhouse
+      - run:
+          name: List installed dokku plugins
+          command: sudo docker exec dokku dokku plugin:list
       - run:
           name: Run acceptance tests
           command: make testacc-ci
@@ -203,6 +240,19 @@ workflows:
                 - "0.34.9"
                 - "0.35.20"
                 - "0.36.11"
+              plugins: ["1.x", "2.x"]
+            # The 2.x plugins require dokku 0.35+
+            exclude:
+              - dokku-version: "0.30.11"
+                plugins: "2.x"
+              - dokku-version: "0.31.5"
+                plugins: "2.x"
+              - dokku-version: "0.32.4"
+                plugins: "2.x"
+              - dokku-version: "0.33.9"
+                plugins: "2.x"
+              - dokku-version: "0.34.9"
+                plugins: "2.x"
           requires:
             - build
             - install-go-deps-vm
