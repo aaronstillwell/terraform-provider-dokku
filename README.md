@@ -22,6 +22,8 @@ This is a terraform provider for provisioning apps on [Dokku](https://dokku.com/
 
 This provider is currently tested against Dokku >= v0.30 and <= 0.36, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
 
+**Proxy compatibility:** The `dokku_app` resource assumes Dokku's nginx proxy. Caddy and other alternative proxies are not currently supported. App creation and refresh run `nginx:set` and `nginx:report` even when no nginx settings are explicitly configured. These operations may fail if the nginx plugin is disabled or unavailable, and the provider does not handle Caddy's rebuild requirements after domain or port changes.
+
 ## Key Features
 
 - 📦 **Apps**: Create and manage Dokku applications
