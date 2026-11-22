@@ -179,7 +179,7 @@ resource "dokku_clickhouse_service_link" "clickhouse-link" {
 
 - `fail_on_untested_version` (Boolean) Whether to fail if the Dokku version has not been tested with this provider. Defaults to true. Can be set via DOKKU_FAIL_ON_UNTESTED_VERSION environment variable.
 - `skip_known_hosts_check` (Boolean) Whether to skip SSH known hosts verification. Defaults to false. Can be set via DOKKU_SKIP_KNOWN_HOSTS_CHECK environment variable.
-- `ssh_cert` (String) Either a path to the SSH private key for connecting to your Dokku server OR the source for an SSH key directly. Can be set via DOKKU_SSH_CERT environment variable.
+- `ssh_cert` (String) Either a path to the SSH private key for connecting to your Dokku server OR the source for an SSH key directly. When unset, the provider resolves ~/.ssh/config via ssh -G (IdentityFile including .pub files matched against the SSH agent such as 1Password bookmarks, IdentitiesOnly, and IdentityAgent), falling back to active SSH agent keys and ~/.ssh/id_{ed25519,rsa,ecdsa,dsa}. Can be set via DOKKU_SSH_CERT environment variable.
 - `ssh_passphrase` (String) An optional passphrase to be used in conjunction with the provided SSH key.
 - `ssh_port` (Number) The SSH port of your Dokku server. Defaults to 22. Can be set via DOKKU_SSH_PORT environment variable.
 - `ssh_user` (String) The SSH user to connect to your Dokku server. Defaults to 'dokku'. Can be set via DOKKU_SSH_USER environment variable.
