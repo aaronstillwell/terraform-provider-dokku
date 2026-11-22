@@ -87,16 +87,12 @@ func parseKeyValues(lines []string) map[string]string {
 	for _, kp := range lines {
 		kp = strings.TrimSpace(kp)
 		if len(kp) > 0 {
-			parts := strings.Split(kp, ":")
-			key := strings.TrimSpace(parts[0])
-
-			val := parts[1]
-			if len(parts[1]) > 1 {
-				val = strings.Join(parts[1:], ":")
+			key, val, found := strings.Cut(kp, ":")
+			if !found {
+				continue
 			}
-			val = strings.TrimSpace(val)
 
-			keyValues[key] = val
+			keyValues[strings.TrimSpace(key)] = strings.TrimSpace(val)
 		}
 	}
 
