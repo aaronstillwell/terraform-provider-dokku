@@ -85,7 +85,9 @@ resource "dokku_app" "rails-app" {
 
 ### Tested dokku versions
 
-The provider is currently tested against versions 0.30 through to 0.35 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
+The provider is currently tested against versions 0.30 through to 0.36 of dokku.
+
+The service resources are tested against the last 1.x releases of the dokku postgres, redis, mysql and clickhouse plugins on every tested dokku version, and against their latest 2.x releases on dokku 0.35 and 0.36 (the 2.x plugins require dokku 0.35+). With the 2.x plugins, changing a service's image to one that runs on a different plugin definition (e.g. another postgres major version) migrates the service's data, and any linked apps are stopped while that happens. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
 
 The provider will check the version of dokku being used and by default will fail if a version outside this range is detected. This behaviour can be disabled with the `fail_on_untested_version` attribute. E.g
 

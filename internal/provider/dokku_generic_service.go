@@ -231,9 +231,12 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 			cloneServiceName = serviceName
 		}
 
+		// The clone keeps the image of the service it copies. Any change to the
+		// image is applied afterwards by the upgrade below, because the 2.x
+		// datastore plugins refuse to clone onto an image that runs on another
+		// definition (e.g. another postgres major version).
 		log.Printf("[DEBUG] running dokku %s:clone %s -> %s\n", service.CmdName, oldServiceName, cloneServiceName)
-		createFlags := createServiceFlagStr(service)
-		res := run(client, fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, oldServiceName, cloneServiceName, createFlags))
+		res := run(client, fmt.Sprintf("%s:clone %s %s", service.CmdName, oldServiceName, cloneServiceName))
 
 		if res.err != nil {
 			return res.err
@@ -247,7 +250,7 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 		if !d.HasChange("name") {
 			// Clone again to the original name
 			log.Printf("[DEBUG] running dokku %s:clone %s -> %s\n", service.CmdName, cloneServiceName, d.Get("name"))
-			res = run(client, fmt.Sprintf("%s:clone %s %s %s\n", service.CmdName, cloneServiceName, d.Get("name"), createFlags))
+			res = run(client, fmt.Sprintf("%s:clone %s %s", service.CmdName, cloneServiceName, d.Get("name")))
 
 			if res.err != nil {
 				return res.err
@@ -264,16 +267,8 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 	service.Id = serviceName
 
 	if d.HasChanges("image", "image_version", "custom_env") {
-		log.Printf("[DEBUG] running %s:upgrade\n", serviceName)
-		flags := createServiceFlagStr(service, "image", "image-version", "custom-env")
-		updateStr := fmt.Sprintf("%s:upgrade %s %s", service.CmdName, service.Name, flags)
-
-		log.Printf("[DEBUG] running `dokku %s`\n", updateStr)
-
-		res := run(client, updateStr)
-
-		if res.err != nil {
-			return res.err
+		if err := dokkuServiceUpgrade(service, client); err != nil {
+			return err
 		}
 	}
 
@@ -305,6 +300,35 @@ func dokkuServiceUpdate(service *DokkuGenericService, d *schema.ResourceData, cl
 	}
 
 	return dokkuServiceRead(service, client)
+}
+
+// restartAppsRequiredMsg is part of the error the 2.x datastore plugins return
+// when an upgrade moves a service onto another definition (e.g. another major
+// version) and so has to migrate its data.
+const restartAppsRequiredMsg = "needs --restart-apps"
+
+// dokkuServiceUpgrade moves a service onto the configured image and version.
+//
+// An upgrade that stays on the same definition is run as-is, so linked apps are
+// left running. With the 2.x plugins, an upgrade onto another definition
+// migrates the data and is refused unless --restart-apps is passed, so it is
+// retried with that flag; linked apps are stopped while the data is copied.
+// The 1.x plugins never return this error, and their --restart-apps takes a
+// value, so the flag is only ever added in response to it.
+func dokkuServiceUpgrade(service *DokkuGenericService, client *goph.Client) error {
+	flags := createServiceFlagStr(service, "image", "image-version", "custom-env")
+	upgradeStr := fmt.Sprintf("%s:upgrade %s %s", service.CmdName, service.Name, flags)
+
+	log.Printf("[DEBUG] running `dokku %s`\n", upgradeStr)
+	res := run(client, upgradeStr)
+
+	if res.err != nil && strings.Contains(res.stdout, restartAppsRequiredMsg) {
+		upgradeStr = fmt.Sprintf("%s --restart-apps", upgradeStr)
+		log.Printf("[DEBUG] upgrade migrates data, running `dokku %s`\n", upgradeStr)
+		res = run(client, upgradeStr)
+	}
+
+	return res.err
 }
 
 func dokkuServiceDestroy(cmd string, serviceName string, client *goph.Client) error {

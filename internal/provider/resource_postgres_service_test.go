@@ -44,19 +44,23 @@ func TestAccPostgresServiceImage(t *testing.T) {
 				Config: fmt.Sprintf(`
 resource "dokku_postgres_service" "test" {
 	name = "%s"
-	image = "cimg/postgres"
-	image_version = "16.4-postgis"
+	image = "postgis/postgis"
+	image_version = "18-3.6"
 }
 `, serviceName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckPgServiceExists("dokku_postgres_service.test"),
-					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "cimg/postgres", "16.4-postgis"),
+					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "postgis/postgis", "18-3.6"),
 				),
 			},
 		},
 	})
 }
 
+// Renaming the service and changing its image at once. With the 2.x plugins
+// postgis/postgis runs on a different definition to the default postgres image,
+// so the service is cloned onto its existing image and then upgraded, which
+// migrates its data onto the new definition.
 func TestAccPostgresUpdate(t *testing.T) {
 	serviceName := fmt.Sprintf("pg-%s", acctest.RandString(10))
 	newServiceName := fmt.Sprintf("pg-renamed-%s", acctest.RandString(10))
@@ -79,14 +83,14 @@ resource "dokku_postgres_service" "test" {
 				Config: fmt.Sprintf(`
 resource "dokku_postgres_service" "test" {
 	name = "%s"
-	image = "cimg/postgres"
-	image_version = "16.4-postgis"
+	image = "postgis/postgis"
+	image_version = "18-3.6"
 }
 `, newServiceName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckPgServiceExists("dokku_postgres_service.test"),
 					testAccCheckPgServiceName("dokku_postgres_service.test", newServiceName),
-					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "cimg/postgres", "16.4-postgis"),
+					testAccCheckPgServiceImageAndVersion("dokku_postgres_service.test", "postgis/postgis", "18-3.6"),
 				),
 			},
 		},
