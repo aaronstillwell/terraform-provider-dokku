@@ -20,7 +20,7 @@
 
 This is a terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Not all configuration options are currently supported.
 
-This provider is currently tested against Dokku >= v0.30 and <= 0.36, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
+This provider is currently tested against Dokku >= v0.32 and <= 0.38, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
 
 ## Key Features
 
@@ -85,7 +85,7 @@ resource "dokku_app" "rails-app" {
 
 ### Tested dokku versions
 
-The provider is currently tested against versions 0.30 through to 0.35 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
+The provider is currently tested against versions 0.32 through to 0.38 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
 
 The provider will check the version of dokku being used and by default will fail if a version outside this range is detected. This behaviour can be disabled with the `fail_on_untested_version` attribute. E.g
 
