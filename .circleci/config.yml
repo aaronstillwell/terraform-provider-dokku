@@ -50,14 +50,15 @@ jobs:
     executor: default
     steps:
       - checkout
-      - go/load-mod-cache
+      - go/load-mod-cache:
+          key: "v3"
       - go/mod-download
-      - go/save-mod-cache
+      - go/save-mod-cache:
+          key: "v3"
       - run:
-          make test
-          # or
-          # command: go test -skip '$TestAcc' ./...
-          # ?
+          name: Run unit tests
+          # Acceptance tests skip themselves when TF_ACC is not set.
+          command: make test
 
   acceptance-tests:
     parameters:
