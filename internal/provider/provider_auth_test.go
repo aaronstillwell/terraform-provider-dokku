@@ -18,19 +18,6 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 )
 
-func generateEd25519PEM(t *testing.T) []byte {
-	t.Helper()
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatalf("failed to generate ed25519 key: %v", err)
-	}
-	block, err := ssh.MarshalPrivateKey(priv, "")
-	if err != nil {
-		t.Fatalf("failed to marshal private key: %v", err)
-	}
-	return pem.EncodeToMemory(block)
-}
-
 func generateRSAPEM(t *testing.T) []byte {
 	t.Helper()
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
