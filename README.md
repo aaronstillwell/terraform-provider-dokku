@@ -30,6 +30,20 @@ This provider is currently tested against Dokku >= v0.30 and <= 0.36, although c
 - 🌐 **Domains**: Configure custom domains for your apps
 - 🔧 **Config**: Manage environment variables and app settings
 
+## Scheduled Postgres backups
+
+`dokku_postgres_backup` manages the default scheduled backup independently of
+`dokku_postgres_service`. It supports S3-compatible storage such as Cloudflare R2,
+with a bucket, endpoint URL, region, signature version, and cron schedule.
+See the [resource documentation](docs/resources/postgres_backup.md) and
+[R2/1Password example](examples/resources/dokku_postgres_backup/resource.tf).
+This resource requires a provider build containing this feature and
+Terraform/OpenTofu >= 1.11 for native write-only credentials. Pass credentials
+from ephemeral inputs or an ephemeral 1Password item; increment
+`credentials_version` after rotating them. Schedule and storage changes update
+in place, and removing the backup resource retains the database and stored objects.
+Retention remains a bucket lifecycle policy.
+
 ## How To Use
 
 1. Add the provider to your terraform block
@@ -115,6 +129,15 @@ From here you can build & test the provider. This VM has dokku running in a dock
 Please raise an issue if you have any difficulties developing.
 
 ### Run acceptance tests locally
+
+The backup contract tests (`TestBackupWriteOnlyCLI` and
+`TestBackupWriteOnlyUnsupportedCLI`) run with `go test ./...` and need no Dokku
+host or cloud credentials. They use an in-process SSH server and installed
+Terraform and OpenTofu CLIs to exercise real provider RPCs. Install CLI versions
+>= 1.11; missing CLIs are skipped. Set `DOKKU_BACKUP_TEST_CLIS` to a platform
+path-separated list of binaries to require a compatibility matrix. Set
+`DOKKU_BACKUP_TEST_OLD_CLIS` to explicitly test rejection of unsupported
+clients. Use `go test -race ./...` for the race checks.
 
 You can run the full acceptance test suite locally with `make testacc`, but note these take some time to run (~10 min).
 
