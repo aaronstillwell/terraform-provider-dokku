@@ -142,10 +142,10 @@ jobs:
             equal: ["1.x", << parameters.plugins >>]
           steps:
             - run:
-                name: Install dokku plugins (last 1.x releases)
+                name: Install dokku plugins (last releases before dokku-datastore)
                 command: |
                   sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git --committish 1.48.0 --name postgres
-                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git --committish 1.44.1 --name redis
+                  sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-redis.git --committish 1.43.0 --name redis
                   sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-mysql.git --committish 1.44.3 --name mysql
                   sudo docker exec dokku sudo dokku plugin:install https://github.com/dokku/dokku-clickhouse.git --committish 1.49.2 --name clickhouse
       - when:
