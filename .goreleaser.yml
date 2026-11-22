@@ -59,5 +59,6 @@ release:
   #     name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
   # If you want to manually examine the release before its live, uncomment this line:
   # draft: true
-changelog:
-  disable: true
+# Release notes come from changes/<tag>.md via --release-notes, which already
+# skips changelog generation. Don't set changelog.disable: in goreleaser v2 it
+# also skips loading the --release-notes file, leaving the release body empty.
