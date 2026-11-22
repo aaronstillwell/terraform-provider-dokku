@@ -1,0 +1,3 @@
+kind: Changed
+body: Tested dokku versions are now 0.32 to 0.38. Dokku 0.30 and 0.31 are no longer tested, so the provider now fails against them by default unless `fail_on_untested_version = false` is set
+time: 2026-11-22T20:00:00.000000Z

@@ -211,13 +211,13 @@ workflows:
           matrix:
             parameters:
               dokku-version:
-                - "0.30.11"
-                - "0.31.5"
                 - "0.32.4"
                 - "0.33.9"
                 - "0.34.9"
                 - "0.35.20"
                 - "0.36.11"
+                - "0.37.10"
+                - "0.38.34"
           requires:
             - build
             - install-go-deps-vm
