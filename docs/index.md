@@ -12,6 +12,7 @@ This provider enables you to manage Dokku applications and their associated serv
 - Application configuration (domains, environment variables, ports)
 - Database services (PostgreSQL, MySQL, Redis)
 - Service linking (connecting applications to databases)
+- Global and per-app log configuration and Vector log drains (`dokku_global_logs`, `dokku_app_logs`)
 
 ## Example Usage
 

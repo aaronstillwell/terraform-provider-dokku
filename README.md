@@ -20,7 +20,7 @@
 
 This is a terraform provider for provisioning apps on [Dokku](https://dokku.com/) installations. Not all configuration options are currently supported.
 
-This provider is currently tested against Dokku >= v0.30 and <= 0.36, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
+This provider is currently tested against Dokku >= v0.30 and <= 0.38, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
 
 ## Key Features
 
@@ -29,6 +29,29 @@ This provider is currently tested against Dokku >= v0.30 and <= 0.36, although c
 - 🔗 **Service Links**: Connect your apps to databases
 - 🌐 **Domains**: Configure custom domains for your apps
 - 🔧 **Config**: Manage environment variables and app settings
+- 📜 **Log Configuration & Drains**: Manage global and per-app Dokku log settings and Vector log drains
+
+## Log configuration & drains
+
+`dokku_global_logs` and `dokku_app_logs` manage global and per-application Dokku
+log settings and Vector log drains targeting Dokku `0.38.x`.
+See the [global logs documentation](docs/resources/global_logs.md)
+([example](examples/resources/dokku_global_logs/resource.tf)) and
+[app logs documentation](docs/resources/app_logs.md)
+([example](examples/resources/dokku_app_logs/resource.tf)).
+Both resources support dual sink attributes: use write-only `vector_sink_wo`
+and `vector_cron_sink_wo` (with `*_version` and Terraform/OpenTofu >= 1.11) for
+DSNs containing API keys or tokens, or `vector_sink` and `vector_cron_sink` for
+non-secret DSNs or older Terraform versions. `dokku_global_logs` also manages
+`vector_networks` and optional `vector_running` lifecycle control (`logs:vector-start`
+/ `logs:vector-stop`, restarting Vector when `vector_image` or `vector_networks`
+change while running).
+
+The logs contract test (`TestLogsWriteOnlyCLI`) runs with `go test ./...` and
+needs no Dokku host. It uses an in-process SSH server and installed Terraform
+and OpenTofu CLIs (>= 1.11; missing CLIs are skipped). Set
+`DOKKU_BACKUP_TEST_CLIS` to a platform path-separated list of binaries to
+require a compatibility matrix.
 
 ## How To Use
 
@@ -85,7 +108,7 @@ resource "dokku_app" "rails-app" {
 
 ### Tested dokku versions
 
-The provider is currently tested against versions 0.30 through to 0.35 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
+The provider is currently tested against versions 0.30 through to 0.38 of dokku. Moving forward, it's likely the number of dokku versions being tested will change, with older versions being dropped as newer ones become available.
 
 The provider will check the version of dokku being used and by default will fail if a version outside this range is detected. This behaviour can be disabled with the `fail_on_untested_version` attribute. E.g
 
