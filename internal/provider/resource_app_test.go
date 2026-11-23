@@ -561,6 +561,51 @@ resource "dokku_app" "test" {
 	})
 }
 
+// Adding a mapping on a scheme and host port that already has one should
+// replace it rather than leave both in place (issue #5)
+func TestAppPortReplacesExistingHostPort(t *testing.T) {
+	appName := fmt.Sprintf("test-ports-%s", acctest.RandString(10))
+
+	resource.Test(t, resource.TestCase{
+		Providers:    testAccProviders,
+		CheckDestroy: testAccDokkuAppDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+				),
+			},
+			{
+				// Simulate a mapping set outside terraform, such as the
+				// default dokku sets on deploy
+				PreConfig: func() {
+					client := testAccProvider.Meta().(*goph.Client)
+					res := run(client, fmt.Sprintf("%s %s http:80:5000", portAddCmd(), appName))
+					if res.err != nil {
+						t.Fatalf("failed to add port: %v", res.err)
+					}
+				},
+				Config: fmt.Sprintf(`
+resource "dokku_app" "test" {
+	name = "%s"
+	ports = ["http:80:8080"]
+}
+`, appName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDokkuAppExists("dokku_app.test"),
+					testAccCheckDokkuAppPortsExist("dokku_app.test", "http:80:8080"),
+					testAccCheckDokkuAppPortsDontExist("dokku_app.test", "http:80:5000"),
+				),
+			},
+		},
+	})
+}
+
 func TestAppAddPort(t *testing.T) {
 	appName := fmt.Sprintf("test-ports-%s", acctest.RandString(10))
 

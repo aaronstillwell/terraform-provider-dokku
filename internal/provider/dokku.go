@@ -447,20 +447,42 @@ func dokkuAppBuildpackAdd(appName string, buildpacks []string, client *goph.Clie
 	return nil
 }
 
+// Add port mappings to an app. Any existing mapping on the same scheme and
+// host port as one being added (e.g a default http:80:5000) is replaced rather
+// than left alongside it.
 //
+// The full list is applied with a single ports:set, because removing and
+// adding separately does not work across dokku versions: newer versions
+// reject a second mapping on the same scheme:hostPort, and older versions
+// (< 0.32) fall back to the default http:80:5000 when the last mapping is
+// removed.
 func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error {
-	for _, portRange := range ports {
-		portRange = strings.TrimSpace(portRange)
-		if len(portRange) > 0 {
-			res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, portRange))
-
-			if res.err != nil {
-				return res.err
-			}
+	toAdd := []string{}
+	for _, p := range ports {
+		p = strings.TrimSpace(p)
+		if len(p) > 0 {
+			toAdd = append(toAdd, p)
 		}
 	}
 
-	return nil
+	if len(toAdd) == 0 {
+		return nil
+	}
+
+	existing, err := readAppPorts(appName, client)
+	if err != nil {
+		return err
+	}
+
+	merged, changed := mergePorts(existing, toAdd)
+	if !changed {
+		return nil
+	}
+
+	log.Printf("[DEBUG] setting ports on %s: %v (were %v)\n", appName, merged, existing)
+	res := run(client, fmt.Sprintf("%s %s %s", portSetCmd(), appName, strings.Join(merged, " ")))
+
+	return res.err
 }
 
 func dokkuAppNginxOptSet(appName string, property string, value string, client *goph.Client) error {
@@ -579,17 +601,15 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 			}
 		}
 
+		portsToAdd := []string{}
 		for _, p := range newPortList {
 			if _, ok := oldPortLookup[p]; !ok {
-				if len(p) > 0 {
-					// new port missing, lets add it
-					res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, p))
-
-					if res.err != nil {
-						return res.err
-					}
-				}
+				portsToAdd = append(portsToAdd, p)
 			}
+		}
+
+		if err := dokkuAppPortsAdd(appName, portsToAdd, client); err != nil {
+			return err
 		}
 	}
 
