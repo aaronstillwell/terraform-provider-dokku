@@ -447,16 +447,46 @@ func dokkuAppBuildpackAdd(appName string, buildpacks []string, client *goph.Clie
 	return nil
 }
 
-//
+// Add port mappings to an app. Any existing mapping on the same scheme and
+// host port as one being added (e.g a default http:80:5000) is removed first,
+// so the mapping from terraform replaces it rather than sitting alongside it.
 func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error {
-	for _, portRange := range ports {
-		portRange = strings.TrimSpace(portRange)
-		if len(portRange) > 0 {
-			res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, portRange))
+	toAdd := []string{}
+	for _, p := range ports {
+		p = strings.TrimSpace(p)
+		if len(p) > 0 {
+			toAdd = append(toAdd, p)
+		}
+	}
 
-			if res.err != nil {
-				return res.err
-			}
+	if len(toAdd) == 0 {
+		return nil
+	}
+
+	existing, err := readAppPorts(appName, client)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range conflictingPorts(existing, toAdd) {
+		log.Printf("[DEBUG] removing port %s from %s, replaced by a mapping on the same host port\n", p, appName)
+		res := run(client, fmt.Sprintf("%s %s %s", portRemoveCmd(), appName, p))
+
+		if res.err != nil {
+			return res.err
+		}
+	}
+
+	existingLookup := sliceToLookupMap(existing)
+	for _, p := range toAdd {
+		if _, ok := existingLookup[p]; ok {
+			continue
+		}
+
+		res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, p))
+
+		if res.err != nil {
+			return res.err
 		}
 	}
 
@@ -579,17 +609,15 @@ func dokkuAppUpdate(app *DokkuApp, d *schema.ResourceData, client *goph.Client) 
 			}
 		}
 
+		portsToAdd := []string{}
 		for _, p := range newPortList {
 			if _, ok := oldPortLookup[p]; !ok {
-				if len(p) > 0 {
-					// new port missing, lets add it
-					res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, p))
-
-					if res.err != nil {
-						return res.err
-					}
-				}
+				portsToAdd = append(portsToAdd, p)
 			}
+		}
+
+		if err := dokkuAppPortsAdd(appName, portsToAdd, client); err != nil {
+			return err
 		}
 	}
 
