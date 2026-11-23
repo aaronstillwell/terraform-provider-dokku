@@ -37,6 +37,13 @@ func portReadCmd() string {
 	return "ports:list"
 }
 
+func portSetCmd() string {
+	if shouldUseProxyPortsCmd() {
+		return "proxy:ports-set"
+	}
+	return "ports:set"
+}
+
 // portHostKey returns the "scheme:hostPort" part of a
 // "scheme:hostPort:containerPort" mapping. Dokku can only route one container
 // port per scheme and host port, so two mappings with the same key conflict.
@@ -48,25 +55,40 @@ func portHostKey(mapping string) string {
 	return parts[0] + ":" + parts[1]
 }
 
-// conflictingPorts returns the mappings in existing that share a
-// scheme:hostPort with a mapping in desired, excluding exact matches. These
-// must be removed before the desired mappings are added, otherwise dokku keeps
-// both (e.g the default http:80:5000 alongside http:80:8080).
-func conflictingPorts(existing []string, desired []string) []string {
-	desiredLookup := sliceToLookupMap(desired)
-	desiredHostKeys := make(map[string]struct{})
-	for _, p := range desired {
-		desiredHostKeys[portHostKey(p)] = struct{}{}
+// mergePorts returns the full set of port mappings an app should have after
+// adding toAdd to existing. Existing mappings on the same scheme:hostPort as
+// one being added are dropped, so the new mapping replaces them (e.g
+// http:80:8080 replaces the default http:80:5000). Other existing mappings
+// are kept. changed is false when existing already matches the result.
+func mergePorts(existing []string, toAdd []string) (merged []string, changed bool) {
+	addHostKeys := make(map[string]struct{})
+	for _, p := range toAdd {
+		addHostKeys[portHostKey(p)] = struct{}{}
 	}
 
-	conflicts := []string{}
+	merged = []string{}
 	for _, p := range existing {
-		if _, ok := desiredLookup[p]; ok {
-			continue
-		}
-		if _, ok := desiredHostKeys[portHostKey(p)]; ok {
-			conflicts = append(conflicts, p)
+		if _, ok := addHostKeys[portHostKey(p)]; !ok {
+			merged = append(merged, p)
 		}
 	}
-	return conflicts
+
+	seen := make(map[string]struct{})
+	for _, p := range toAdd {
+		if _, ok := seen[p]; !ok {
+			seen[p] = struct{}{}
+			merged = append(merged, p)
+		}
+	}
+
+	existingLookup := sliceToLookupMap(existing)
+	mergedLookup := sliceToLookupMap(merged)
+	changed = len(existingLookup) != len(mergedLookup)
+	for p := range mergedLookup {
+		if _, ok := existingLookup[p]; !ok {
+			changed = true
+		}
+	}
+
+	return merged, changed
 }

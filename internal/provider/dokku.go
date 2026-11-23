@@ -448,8 +448,14 @@ func dokkuAppBuildpackAdd(appName string, buildpacks []string, client *goph.Clie
 }
 
 // Add port mappings to an app. Any existing mapping on the same scheme and
-// host port as one being added (e.g a default http:80:5000) is removed first,
-// so the mapping from terraform replaces it rather than sitting alongside it.
+// host port as one being added (e.g a default http:80:5000) is replaced rather
+// than left alongside it.
+//
+// The full list is applied with a single ports:set, because removing and
+// adding separately does not work across dokku versions: newer versions
+// reject a second mapping on the same scheme:hostPort, and older versions
+// (< 0.32) fall back to the default http:80:5000 when the last mapping is
+// removed.
 func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error {
 	toAdd := []string{}
 	for _, p := range ports {
@@ -468,29 +474,15 @@ func dokkuAppPortsAdd(appName string, ports []string, client *goph.Client) error
 		return err
 	}
 
-	for _, p := range conflictingPorts(existing, toAdd) {
-		log.Printf("[DEBUG] removing port %s from %s, replaced by a mapping on the same host port\n", p, appName)
-		res := run(client, fmt.Sprintf("%s %s %s", portRemoveCmd(), appName, p))
-
-		if res.err != nil {
-			return res.err
-		}
+	merged, changed := mergePorts(existing, toAdd)
+	if !changed {
+		return nil
 	}
 
-	existingLookup := sliceToLookupMap(existing)
-	for _, p := range toAdd {
-		if _, ok := existingLookup[p]; ok {
-			continue
-		}
+	log.Printf("[DEBUG] setting ports on %s: %v (were %v)\n", appName, merged, existing)
+	res := run(client, fmt.Sprintf("%s %s %s", portSetCmd(), appName, strings.Join(merged, " ")))
 
-		res := run(client, fmt.Sprintf("%s %s %s", portAddCmd(), appName, p))
-
-		if res.err != nil {
-			return res.err
-		}
-	}
-
-	return nil
+	return res.err
 }
 
 func dokkuAppNginxOptSet(appName string, property string, value string, client *goph.Client) error {
