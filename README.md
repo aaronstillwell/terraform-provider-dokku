@@ -22,6 +22,8 @@ This is a terraform provider for provisioning apps on [Dokku](https://dokku.com/
 
 This provider is currently tested against Dokku >= v0.30 and <= 0.36, although can be forced to run against any version. [Read more](#Tested-dokku-versions).
 
+**Proxy compatibility:** The `dokku_app` resource assumes Dokku's nginx proxy. Caddy and other alternative proxies are not currently supported. App creation and refresh run `nginx:set` and `nginx:report` even when no nginx settings are explicitly configured. These operations may fail if the nginx plugin is disabled or unavailable, and the provider does not handle Caddy's rebuild requirements after domain or port changes.
+
 ## Key Features
 
 - 📦 **Apps**: Create and manage Dokku applications
@@ -47,7 +49,7 @@ terraform {
 
 2. Initialise the provider with your host settings. The SSH key should be that of a [dokku user](https://dokku.com/docs/deployment/user-management/). Dokku users have dokku set as a forced command - the provider will not attempt to explicitly specify the dokku binary over SSH.
 
-An SSH key can be provided as an absolute path or inline.
+An SSH key can be provided as an absolute path or inline. If omitted, the provider resolves `~/.ssh/config` via `ssh -G` (`IdentityFile` including `.pub` files matched against the SSH agent such as 1Password bookmarks, `IdentitiesOnly`, and `IdentityAgent`), falling back to active SSH agent keys and `~/.ssh/id_{ed25519,rsa,ecdsa,dsa}`.
 
 ```hcl
 provider "dokku" {
