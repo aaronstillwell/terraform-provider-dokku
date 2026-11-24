@@ -5,6 +5,7 @@ go 1.23.0
 require (
 	al.essio.dev/pkg/shellescape v1.5.0
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/hashicorp/go-cty v1.5.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.37.0
 	github.com/melbahja/goph v1.4.0
 	golang.org/x/crypto v0.38.0
@@ -21,7 +22,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-checkpoint v0.5.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-cty v1.5.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-plugin v1.6.3 // indirect

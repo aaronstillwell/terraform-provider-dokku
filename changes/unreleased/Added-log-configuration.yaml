@@ -1,0 +1,3 @@
+kind: Added
+body: Global (`dokku_global_logs`) and per-app (`dokku_app_logs`) log configuration and Vector log drain resources for Dokku 0.38.x, supporting dual standard and write-only (`*_wo`) sink DSNs, `vector_networks`, and optional `vector_running` lifecycle management (thanks @iloveitaly).
+time: 2026-11-19T00:00:00Z
