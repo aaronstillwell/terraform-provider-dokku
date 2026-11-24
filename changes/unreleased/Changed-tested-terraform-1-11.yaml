@@ -1,0 +1,3 @@
+kind: Changed
+body: Acceptance tests now run against Terraform 1.11.4 instead of 1.1.5. The plugin SDK still supports older Terraform versions; only the tested version has changed
+time: 2026-11-23T00:00:00.000000Z
