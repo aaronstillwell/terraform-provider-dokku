@@ -9,8 +9,8 @@ orbs:
 parameters:
   go-version:
     type: enum
-    enum: ["1.23.4"]
-    default: "1.23.4"
+    enum: ["1.25.14"]
+    default: "1.25.14"
 
 executors:
   default:
@@ -153,7 +153,7 @@ jobs:
 
   build-docs:
     docker:
-      - image: cimg/go:1.23
+      - image: cimg/go:<< pipeline.parameters.go-version >>
     resource_class: small
     steps:
       - checkout
