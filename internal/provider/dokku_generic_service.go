@@ -168,8 +168,6 @@ func getServiceInfo(service string, name string, client *goph.Client) (map[strin
 		data[strings.TrimSpace(strings.ToLower(lnPart[0]))] = valPart
 	}
 
-	log.Printf("Returning info for %s service %s :: %v", service, name, data)
-
 	return data, nil
 }
 
