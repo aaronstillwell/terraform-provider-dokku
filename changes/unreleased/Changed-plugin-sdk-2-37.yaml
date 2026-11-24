@@ -1,0 +1,3 @@
+kind: Changed
+body: Upgrade terraform-plugin-sdk to v2.37.0, which adds support for write-only attributes (requires Terraform/OpenTofu >= 1.11 to use them) (thanks @iloveitaly)
+time: 2026-11-19T20:10:26.000000-07:00
