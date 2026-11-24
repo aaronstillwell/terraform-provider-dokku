@@ -11,6 +11,7 @@ The Dokku provider allows Terraform to manage resources on a Dokku host. Dokku i
 This provider enables you to manage Dokku applications and their associated services including:
 - Application configuration (domains, environment variables, ports)
 - Database services (PostgreSQL, MySQL, Redis)
+- Scheduled Postgres backups (`dokku_postgres_backup`)
 - Service linking (connecting applications to databases)
 
 ## Example Usage
